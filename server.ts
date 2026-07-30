@@ -4,28 +4,55 @@ import path from "path";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { Yl as defaultUnits, Hl as defaultSignatures } from "./src/data";
-import { initializeApp } from "firebase-admin/app";
+import { initializeApp, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 
 let firestoreDb: any = null;
 
 try {
-  const firebaseConfigPath = path.join(process.cwd(), "firebase-applet-config.json");
-  if (fs.existsSync(firebaseConfigPath)) {
-    const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, "utf-8"));
-    const app = initializeApp({
-      projectId: firebaseConfig.projectId
-    });
-    const dbId = firebaseConfig.firestoreDatabaseId;
-    if (dbId) {
-      firestoreDb = getFirestore(app, dbId);
-    } else {
-      firestoreDb = getFirestore(app);
+  let serviceAccount: any = null;
+  const saEnv = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+  if (saEnv) {
+    try {
+      serviceAccount = typeof saEnv === "string" ? JSON.parse(saEnv) : saEnv;
+    } catch (e) {
+      console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT environment variable:", e);
     }
-    console.log("Firebase Admin Firestore initialized successfully for project:", firebaseConfig.projectId);
+  }
+
+  const firebaseConfigPath = path.join(process.cwd(), "firebase-applet-config.json");
+  const hasConfig = fs.existsSync(firebaseConfigPath);
+
+  if (serviceAccount) {
+    const app = initializeApp({
+      credential: cert(serviceAccount)
+    });
+    firestoreDb = getFirestore(app);
+    console.log("Firebase Admin initialized successfully using Service Account key from environment.");
+  } else if (hasConfig) {
+    const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, "utf-8"));
+    const isGoogleEnvironment = !!(
+      process.env.K_SERVICE ||
+      process.env.GCP_PROJECT ||
+      process.env.GOOGLE_CLOUD_PROJECT ||
+      process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+      process.env.GAE_INSTANCE
+    );
+
+    if (isGoogleEnvironment) {
+      const app = initializeApp({
+        projectId: firebaseConfig.projectId
+      });
+      const dbId = firebaseConfig.firestoreDatabaseId;
+      firestoreDb = dbId ? getFirestore(app, dbId) : getFirestore(app);
+      console.log("Firebase Admin Firestore initialized with ADC for project:", firebaseConfig.projectId);
+    } else {
+      console.warn("Notice: Running outside Google Cloud (e.g. Render) without FIREBASE_SERVICE_ACCOUNT. Using local database storage.");
+    }
   }
 } catch (err) {
   console.error("Failed to initialize firebase-admin:", err);
+  firestoreDb = null;
 }
 
 const PORT = process.env.PORT || 3000;
@@ -427,9 +454,10 @@ async function loadDbFromFirestore() {
     
     isFirestoreLoaded = true;
     console.log("Successfully loaded database from Cloud Firestore.");
-  } catch (err) {
-    console.error("Error loading database from Firestore:", err);
-    // In case of Firestore load failure, allow local writes to act as fallback
+  } catch (err: any) {
+    console.error("Error loading database from Firestore (falling back to local JSON):", err?.message || err);
+    // In case of Firestore load failure, disable Firestore and allow local writes as fallback
+    firestoreDb = null;
     isFirestoreLoaded = true;
   }
 }
