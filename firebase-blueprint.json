@@ -1,0 +1,49 @@
+{
+  "entities": {
+    "app_state": {
+      "title": "AppState",
+      "description": "Global application state document containing arrays and configuration objects",
+      "type": "object",
+      "properties": {
+        "trades": {
+          "type": "array",
+          "description": "Active trade listings posted by users"
+        },
+        "sessions": {
+          "type": "object",
+          "description": "Active session tokens mapped to Roblox/Discord user info"
+        },
+        "chats": {
+          "type": "array",
+          "description": "Active chat threads and messaging histories"
+        },
+        "reports": {
+          "type": "array",
+          "description": "Submitted reports against users"
+        },
+        "bannedUsers": {
+          "type": "array",
+          "description": "List of currently banned or muted user profiles"
+        },
+        "config": {
+          "type": "object",
+          "description": "Global settings like maintenance mode, music URLs, etc."
+        },
+        "units": {
+          "type": "array",
+          "description": "The up-to-date values, rarity, and upgrade details for each unit"
+        },
+        "signatures": {
+          "type": "array",
+          "description": "The custom signatures or sign values for units"
+        }
+      }
+    }
+  },
+  "firestore": {
+    "/app_state/{docId}": {
+      "schema": "app_state",
+      "description": "Partitioned global application state documents to stay within size limits"
+    }
+  }
+}

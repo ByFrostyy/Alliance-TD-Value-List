@@ -1,0 +1,127 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Space Grotesk", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Custom scrollbars for a premium feeling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  border: 1.5px solid rgba(0, 0, 0, 0.2);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Simple animation for clock spin */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 12s linear infinite;
+}
+
+/* Custom premium gaming styles */
+.gaming-gradient {
+  background: #0a0b12;
+}
+
+.glass-panel {
+  background: rgba(10, 11, 18, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.neon-glow {
+  animation: none;
+  opacity: 1;
+}
+
+/* Premium neon shadow drop utilities - REDEFINED TO FLAT/SUBTLE STYLE */
+.shadow-neon-indigo {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.shadow-neon-indigo-intense {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+.shadow-neon-pink {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.shadow-neon-cyan {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.shadow-neon-cyan-intense {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+.shadow-neon-amber {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.shadow-neon-rose {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.text-glow-indigo {
+  text-shadow: none;
+}
+
+.text-glow-pink {
+  text-shadow: none;
+}
+
+.text-glow-cyan {
+  text-shadow: none;
+}
+
+.text-glow-white {
+  text-shadow: none;
+}
+
+
+
+/* Custom premium hover cards with neon borders - REDEFINED TO FLAT STYLE */
+.neon-card-indigo {
+  background: #0c0d16;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.6);
+}
+
+.neon-card-indigo:hover {
+  border-color: rgba(99, 102, 241, 0.25);
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.6);
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+

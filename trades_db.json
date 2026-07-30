@@ -1,0 +1,401 @@
+{
+  "trades": [],
+  "sessions": {
+    "session_dev_uj05fay44rmrb4s2eq": {
+      "id": 999999999,
+      "name": "Admin",
+      "displayName": "Admin",
+      "avatar": "https://img.icons8.com/color/48/shield.png",
+      "isAdmin": true
+    }
+  },
+  "maintenanceModeActive": false,
+  "chats": [],
+  "globalMusicUrl": "",
+  "globalClickSoundUrl": "",
+  "units": [
+    {
+      "name": "Titan Cinemaman",
+      "rarity": "Mythic",
+      "img": "https://i.postimg.cc/T367KqPj/photo-5323400840439599572-m.jpg",
+      "gems": 60,
+      "demand": 5,
+      "stability": "Underpaid",
+      "placeCost": 2000,
+      "obtain": "0.1% from the Summon",
+      "upgrades": [
+        {
+          "lvl": 1,
+          "cost": "Place",
+          "dmg": 2000,
+          "cd": 2,
+          "range": 15
+        },
+        {
+          "lvl": 2,
+          "cost": "$2000",
+          "dmg": 3000,
+          "cd": 1,
+          "range": 20
+        },
+        {
+          "lvl": 3,
+          "cost": "$4000",
+          "dmg": 2000,
+          "cd": 1,
+          "range": 20
+        },
+        {
+          "lvl": 4,
+          "cost": "$5000",
+          "dmg": 2000,
+          "cd": 0.5,
+          "range": 25
+        },
+        {
+          "lvl": 5,
+          "cost": "$8000",
+          "dmg": 3000,
+          "cd": 0.4,
+          "range": 30
+        },
+        {
+          "lvl": 6,
+          "cost": "$15000",
+          "dmg": 3000,
+          "cd": 0.2,
+          "range": 50
+        }
+      ]
+    },
+    {
+      "name": "Upgraded Titan Cameraman",
+      "rarity": "Mythic",
+      "img": "https://i.postimg.cc/wBJvTmWK/photo-5323400840439599609-m.jpg",
+      "gems": 160,
+      "demand": 6,
+      "stability": "Stable",
+      "placeCost": 1500,
+      "obtain": "0.1% from the Summon",
+      "upgrades": [
+        {
+          "lvl": 1,
+          "cost": "Place",
+          "dmg": 200,
+          "cd": 0.25,
+          "range": 20
+        },
+        {
+          "lvl": 2,
+          "cost": "$1500",
+          "dmg": 550,
+          "cd": 0.2,
+          "range": 30
+        },
+        {
+          "lvl": 3,
+          "cost": "$3000",
+          "dmg": 900,
+          "cd": 0.2,
+          "range": 40
+        },
+        {
+          "lvl": 4,
+          "cost": "$4000",
+          "dmg": 1500,
+          "cd": 0.2,
+          "range": 50
+        },
+        {
+          "lvl": 5,
+          "cost": "$8000",
+          "dmg": 1500,
+          "cd": 0.15,
+          "range": 50
+        },
+        {
+          "lvl": 6,
+          "cost": "$10000",
+          "dmg": 2000,
+          "cd": 0.1,
+          "range": 60
+        }
+      ]
+    },
+    {
+      "name": "Upgraded Titan Speakerman",
+      "rarity": "Mythic",
+      "img": "https://i.postimg.cc/CKFmMhKB/photo-5323400840439599593-m.jpg",
+      "gems": 150,
+      "demand": 6,
+      "stability": "Stable",
+      "placeCost": 1000,
+      "obtain": "0.1% from the Summon",
+      "upgrades": [
+        {
+          "lvl": 1,
+          "cost": "Place",
+          "dmg": 500,
+          "cd": 1,
+          "range": 20
+        },
+        {
+          "lvl": 2,
+          "cost": "$1000",
+          "dmg": 1000,
+          "cd": 0.8,
+          "range": 25
+        },
+        {
+          "lvl": 3,
+          "cost": "$2000",
+          "dmg": 2300,
+          "cd": 0.6,
+          "range": 30
+        },
+        {
+          "lvl": 4,
+          "cost": "$4000",
+          "dmg": 3500,
+          "cd": 0.5,
+          "range": 35
+        },
+        {
+          "lvl": 5,
+          "cost": "$6000",
+          "dmg": 4800,
+          "cd": 0.4,
+          "range": 45
+        }
+      ]
+    }
+  ],
+  "signatures": [
+    {
+      "name": "ssagsgydh",
+      "percent": 100,
+      "role": "Owner",
+      "color": "#3b82f6"
+    },
+    {
+      "name": "SecretOftim",
+      "percent": 75,
+      "role": "Developer",
+      "color": "#14b8a6"
+    },
+    {
+      "name": "RealTh3Ultimate",
+      "percent": 75,
+      "role": "Developer",
+      "color": "#14b8a6"
+    },
+    {
+      "name": "Ivanessster",
+      "percent": 60,
+      "role": "Server Admin",
+      "color": "#f97316"
+    },
+    {
+      "name": "JloJluKoHllluK",
+      "percent": 60,
+      "role": "Manager",
+      "color": "#ec4899"
+    },
+    {
+      "name": "camdenlovesriolu",
+      "percent": 67,
+      "role": "Server Admin",
+      "color": "#f97316"
+    },
+    {
+      "name": "Erichi_471",
+      "percent": 30,
+      "role": "Tester",
+      "color": "#a855f7"
+    },
+    {
+      "name": "Pavmez",
+      "percent": 30,
+      "role": "Tester",
+      "color": "#a855f7"
+    },
+    {
+      "name": "YT_Faron",
+      "percent": 30,
+      "role": "Tester",
+      "color": "#a855f7"
+    },
+    {
+      "name": "Itz_Olik247",
+      "percent": 30,
+      "role": "Tester",
+      "color": "#a855f7"
+    },
+    {
+      "name": "Mamikon1112",
+      "percent": 30,
+      "role": "Tester",
+      "color": "#a855f7"
+    },
+    {
+      "name": "gman_9863",
+      "percent": 30,
+      "role": "Tester",
+      "color": "#a855f7"
+    },
+    {
+      "name": "Begzod2211",
+      "percent": 35,
+      "role": "Value Maker",
+      "color": "#eab308"
+    },
+    {
+      "name": "Broksnife",
+      "percent": 35,
+      "role": "Value Maker",
+      "color": "#eab308"
+    },
+    {
+      "name": "NamcutedethuongOMG",
+      "percent": 10,
+      "role": "Partner",
+      "color": "#ef4444"
+    },
+    {
+      "name": "marliconwespa",
+      "percent": 10,
+      "role": "Partner",
+      "color": "#ef4444"
+    },
+    {
+      "name": "actv_arnold",
+      "percent": 10,
+      "role": "Partner",
+      "color": "#ef4444"
+    },
+    {
+      "name": "niahuser",
+      "percent": 20,
+      "role": "Partner",
+      "color": "#ef4444"
+    },
+    {
+      "name": "JonePreston123456o",
+      "percent": 10,
+      "role": "Partner",
+      "color": "#ef4444"
+    },
+    {
+      "name": "rushdoor3",
+      "percent": 20,
+      "role": "Partner",
+      "color": "#ef4444"
+    },
+    {
+      "name": "hehehequy1979",
+      "percent": 15,
+      "role": "Partner",
+      "color": "#ef4444"
+    },
+    {
+      "name": "PIgsuskid4",
+      "percent": 15,
+      "role": "Partner",
+      "color": "#ef4444"
+    },
+    {
+      "name": "cooldudeyesmanpro",
+      "percent": 15,
+      "role": "Partner",
+      "color": "#ef4444"
+    },
+    {
+      "name": "None",
+      "percent": 0,
+      "role": "No Sign",
+      "color": "#888888"
+    }
+  ],
+  "forbiddenWords": [
+    "nigger",
+    "nigga",
+    "faggot",
+    "fag",
+    "retard",
+    "whore",
+    "slut",
+    "kys",
+    "bitch",
+    "хуй",
+    "пизд",
+    "ебл",
+    "шлюх",
+    "пидор",
+    "даун",
+    "бляд",
+    "сука",
+    "чмо",
+    "гнйд",
+    "уеб",
+    "⑥⑦",
+    "вагина",
+    "дрочить",
+    "дрочка",
+    "ебали",
+    "ебать",
+    "ебля",
+    "залупа",
+    "лень",
+    "ниггер",
+    "нигер",
+    "пизда",
+    "пиздой",
+    "писюн",
+    "подрочил",
+    "порно",
+    "пизду",
+    "сикс севен",
+    "трахать",
+    "член",
+    "dick",
+    "garticphone.com",
+    "len",
+    "n1ga",
+    "n1ger",
+    "n1gga",
+    "n1gger",
+    "nga",
+    "nger",
+    "ngga",
+    "ngger",
+    "nggga",
+    "nggger rape",
+    "ngggggggggggeeeeeerrr",
+    "nggggggggggggggaaaaaaaaaa",
+    "niga",
+    "niger",
+    "niggggggggggeeeer",
+    "niggggggggggaaaa",
+    "nlga",
+    "nlger",
+    "nlgga",
+    "nlgger",
+    "p0rn",
+    "p0rno",
+    "porn",
+    "porno",
+    "pussy",
+    "six seven",
+    "free nitro",
+    "51",
+    "-51",
+    "brenton",
+    "1488",
+    "nigg.",
+    "nig",
+    "1489",
+    "1487"
+  ],
+  "reports": [],
+  "bannedUsers": []
+}
