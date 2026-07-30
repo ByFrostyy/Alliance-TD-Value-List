@@ -11,12 +11,19 @@ let firestoreDb: any = null;
 
 try {
   let serviceAccount: any = null;
+  const saFilePath = path.join(process.cwd(), "firebase-service-account.json");
   const saEnv = process.env.FIREBASE_SERVICE_ACCOUNT || process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
   if (saEnv) {
     try {
       serviceAccount = typeof saEnv === "string" ? JSON.parse(saEnv) : saEnv;
     } catch (e) {
       console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT environment variable:", e);
+    }
+  } else if (fs.existsSync(saFilePath)) {
+    try {
+      serviceAccount = JSON.parse(fs.readFileSync(saFilePath, "utf-8"));
+    } catch (e) {
+      console.error("Failed to parse firebase-service-account.json file:", e);
     }
   }
 
@@ -56,7 +63,9 @@ try {
 }
 
 const PORT = process.env.PORT || 3000;
-const DB_FILE = path.join(process.cwd(), "trades_db.json");
+const DB_FILE = process.env.DATA_DIR 
+  ? path.join(process.env.DATA_DIR, "trades_db.json") 
+  : (process.env.DB_FILE_PATH || path.join(process.cwd(), "trades_db.json"));
 
 interface RobloxUser {
   email?: string;
@@ -291,6 +300,10 @@ function loadDb() {
 
 function saveDb(data: any) {
   try {
+    const dir = path.dirname(DB_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
   } catch (err) {
     console.error("Error writing to database file:", err);
