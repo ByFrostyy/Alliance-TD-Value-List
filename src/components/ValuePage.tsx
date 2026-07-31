@@ -8,10 +8,10 @@ const rarityClasses: Record<string, { bg: string; text: string; shadow: string; 
   All: { bg: "bg-blue-600/5", text: "text-blue-400", shadow: "shadow-sm", border: "border-blue-500/20", activeBorder: "border-blue-500/50", hoverBg: "hover:bg-blue-600/10", hoverText: "hover:text-blue-300", accentGlow: "rgba(37,99,235,0.4)" },
   Basic: { bg: "bg-zinc-500/5", text: "text-zinc-400", shadow: "shadow-sm", border: "border-zinc-500/20", activeBorder: "border-zinc-400/50", hoverBg: "hover:bg-zinc-600/10", hoverText: "hover:text-zinc-300", accentGlow: "rgba(113,113,122,0.2)" },
   Common: { bg: "bg-slate-500/5", text: "text-slate-400", shadow: "shadow-sm", border: "border-slate-500/20", activeBorder: "border-slate-400/50", hoverBg: "hover:bg-slate-600/10", hoverText: "hover:text-slate-300", accentGlow: "rgba(148,163,184,0.3)" },
-  Uncommon: { bg: "bg-emerald-600/5", text: "text-emerald-400", shadow: "shadow-sm", border: "border-emerald-500/20", activeBorder: "border-emerald-500/50", hoverBg: "hover:bg-emerald-600/10", hoverText: "hover:text-emerald-300", accentGlow: "rgba(16,185,129,0.4)" },
-  Rare: { bg: "bg-sky-600/5", text: "text-sky-400", shadow: "shadow-sm", border: "border-sky-500/20", activeBorder: "border-sky-500/50", hoverBg: "hover:bg-sky-500/10", hoverText: "hover:text-sky-300", accentGlow: "rgba(14,165,233,0.4)" },
-  Epic: { bg: "bg-purple-600/5", text: "text-purple-400", shadow: "shadow-sm", border: "border-purple-500/20", activeBorder: "border-purple-500/50", hoverBg: "hover:bg-purple-600/10", hoverText: "hover:text-purple-300", accentGlow: "rgba(147,51,234,0.45)" },
-  Legendary: { bg: "bg-amber-500/5", text: "text-amber-400", shadow: "shadow-sm", border: "border-amber-500/20", activeBorder: "border-amber-500/50", hoverBg: "hover:bg-amber-500/10", hoverText: "hover:text-amber-300", accentGlow: "rgba(245,158,11,0.5)" },
+  Uncommon: { bg: "bg-emerald-600/10", text: "text-emerald-400", shadow: "shadow-sm", border: "border-emerald-500/30", activeBorder: "border-emerald-500/60", hoverBg: "hover:bg-emerald-600/15", hoverText: "hover:text-emerald-300", accentGlow: "rgba(16,185,129,0.4)" },
+  Rare: { bg: "bg-sky-600/10", text: "text-sky-400", shadow: "shadow-sm", border: "border-sky-500/30", activeBorder: "border-sky-500/60", hoverBg: "hover:bg-sky-500/15", hoverText: "hover:text-sky-300", accentGlow: "rgba(14,165,233,0.4)" },
+  Epic: { bg: "bg-purple-600/10", text: "text-purple-400", shadow: "shadow-sm", border: "border-purple-500/30", activeBorder: "border-purple-500/60", hoverBg: "hover:bg-purple-600/15", hoverText: "hover:text-purple-300", accentGlow: "rgba(147,51,234,0.45)" },
+  Legendary: { bg: "bg-yellow-500/10", text: "text-yellow-400", shadow: "shadow-sm", border: "border-yellow-500/30", activeBorder: "border-yellow-500/60", hoverBg: "hover:bg-yellow-500/15", hoverText: "hover:text-yellow-300", accentGlow: "rgba(234,179,8,0.5)" },
   Mythic: { bg: "bg-rose-600/5", text: "text-rose-400", shadow: "shadow-sm", border: "border-rose-500/20", activeBorder: "border-rose-500/50", hoverBg: "hover:bg-rose-600/10", hoverText: "hover:text-rose-300", accentGlow: "rgba(225,29,72,0.6)" },
   Exclusive: { bg: "bg-indigo-600/5", text: "text-indigo-400", shadow: "shadow-sm", border: "border-indigo-500/20", activeBorder: "border-indigo-500/50", hoverBg: "hover:bg-indigo-600/10", hoverText: "hover:text-indigo-300", accentGlow: "rgba(79,70,229,0.6)" },
   Godly: { bg: "bg-cyan-600/5", text: "text-cyan-400", shadow: "shadow-sm", border: "border-cyan-500/25", activeBorder: "border-cyan-500/60", hoverBg: "hover:bg-cyan-600/10", hoverText: "hover:text-cyan-300", accentGlow: "rgba(6,182,212,0.7)" },
@@ -553,7 +553,7 @@ export default function ValuePage({ units: propUnits }: { units?: Unit[] }) {
             rarity === "Uncommons" ? "bg-emerald-400" :
             rarity === "Rares" ? "bg-sky-400" :
             rarity === "Epics" ? "bg-purple-400" :
-            rarity === "Legendaries" ? "bg-amber-400" :
+            rarity === "Legendaries" ? "bg-yellow-400" :
             rarity === "Mythics" ? "bg-rose-400" :
             rarity === "Exclusives" ? "bg-indigo-400" :
             "bg-zinc-400";
@@ -712,11 +712,16 @@ export default function ValuePage({ units: propUnits }: { units?: Unit[] }) {
                   {unit.name}
                 </span>
                 <span className={`text-[9px] font-black uppercase tracking-wider block
-                  ${unit.rarity.toLowerCase().includes("monster") ? "text-orange-400" :
+                  ${unit.rarity.toLowerCase().includes("legendary") ? "text-yellow-400" :
+                    unit.rarity.toLowerCase().includes("epic") ? "text-purple-400" :
+                    unit.rarity.toLowerCase().includes("rare") ? "text-sky-400" :
+                    unit.rarity.toLowerCase().includes("uncommon") ? "text-emerald-400" :
+                    unit.rarity.toLowerCase().includes("basic") ? "text-zinc-400" :
+                    unit.rarity.toLowerCase().includes("monster") ? "text-orange-400" :
                     unit.rarity.toLowerCase().includes("staff") ? "text-cyan-400" :
                     unit.rarity.toLowerCase().includes("general") ? "text-blue-400" :
                     unit.rarity.toLowerCase().includes("exclusive") ? "text-indigo-400" :
-                    unit.rarity.toLowerCase().includes("mythic") ? "text-rose-400" : "text-slate-400"}`}
+                    unit.rarity.toLowerCase().includes("mythic") ? "text-rose-400" : "text-yellow-400"}`}
                 >
                   {unit.rarity}
                 </span>

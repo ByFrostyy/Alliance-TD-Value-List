@@ -82,6 +82,7 @@ interface CounterOffer {
   id: string;
   userId: number;
   displayName: string;
+  username?: string;
   avatar: string;
   discordId?: string;
   offerText: string; // simpler, just let them write what they offer!
@@ -325,11 +326,114 @@ Object.assign(sessions, dbState.sessions || {});
 let maintenanceModeActive = dbState.maintenanceModeActive || false;
 let globalMusicUrl = dbState.globalMusicUrl || "";
 let globalClickSoundUrl = dbState.globalClickSoundUrl || "";
-if (!dbState.units || !Array.isArray(dbState.units) || dbState.units.length === 0) {
-  dbState.units = defaultUnits;
+const demoUnitNames = new Set([
+  "Chef Cameraman", "Community Cameraman", "Upgraded Fire King",
+  "Upgraded Titan Speakerman", "Secret Agent", "Watchman of Darkness",
+  "Demon Plunger", "G-Toilet 5.0", "Holiday Blizzard"
+]);
+
+function cleanAndSyncUnits() {
+  if (!dbState.units || !Array.isArray(dbState.units) || dbState.units.length === 0) {
+    dbState.units = [...defaultUnits];
+  } else {
+    dbState.units = dbState.units.filter((u: any) => u && u.name && !demoUnitNames.has(u.name));
+    defaultUnits.forEach(defUnit => {
+      const idx = dbState.units.findIndex((u: any) => u.name === defUnit.name);
+      if (idx !== -1) {
+        dbState.units[idx] = {
+          ...dbState.units[idx],
+          gems: defUnit.gems,
+          tokenValue: defUnit.tokenValue,
+          shinyValue: defUnit.shinyValue,
+          demand: defUnit.demand,
+          stability: defUnit.stability,
+          rarity: defUnit.rarity,
+        };
+      } else {
+        dbState.units.push(defUnit);
+      }
+    });
+  }
 }
-if (!dbState.signatures || !Array.isArray(dbState.signatures) || dbState.signatures.length === 0) {
-  dbState.signatures = defaultSignatures;
+
+cleanAndSyncUnits();
+dbState.signatures = [...defaultSignatures];
+
+const defaultRoadmap = [
+  {
+    id: "1",
+    title: "Unknown ???",
+    status: "planned",
+    date: "TBA",
+    description: "Upcoming game update for Alliance Tower Defense! Stay tuned for official announcements.",
+    icon: "Rocket",
+    image: "https://i.postimg.cc/PfcKG2YT/16-20260701171102.png",
+    features: [
+      "Alliance Tower Defense Major Update",
+      "New Secret & Godly Units"
+    ]
+  }
+];
+
+const defaultCountdown = {
+  enabled: true,
+  title: "🔨 Crafts + ?? ✨ UPDATE",
+  subtitle: "Target Release: Sun Aug 16, 2026, 18:00 (GMT+3)",
+  targetDate: "2026-08-16T18:00:00+03:00",
+  startDate: "2026-08-01T18:00:00+03:00",
+  description: "Hop into Alliance: TD and enjoy the new upcoming features & crafts!",
+  bannerImage: "https://i.postimg.cc/44b4qFry/16-20260701171125.png",
+  teaserImages: [
+    {
+      url: "https://i.postimg.cc/44b4qFry/16-20260701171125.png",
+      title: "Titan Camera Man",
+      description: "Exclusive Unit"
+    },
+    {
+      url: "https://i.postimg.cc/PfcKG2YT/16-20260701171102.png",
+      title: "Titan TV Man",
+      description: "Legendary Unit"
+    }
+  ]
+};
+
+const defaultUpdateLogs = [
+  {
+    id: "update-v2-0",
+    title: "Update 2.0 - Crafting & Trading System",
+    date: "July 2026",
+    tag: "MAJOR UPDATE",
+    image: "https://i.postimg.cc/44b4qFry/16-20260701171125.png",
+    iconIsSun: false,
+    features: [
+      { icon: "✨", color: "text-amber-400", text: "New Godly Unit Crafting recipes added" },
+      { icon: "🔥", color: "text-rose-400", text: "Real-time Community Trading System" },
+      { icon: "⚡", color: "text-indigo-400", text: "Value Calculator algorithm optimizations" },
+      { icon: "🛡️", color: "text-emerald-400", text: "Anti-scam verification badges" }
+    ]
+  },
+  {
+    id: "update-v1-5",
+    title: "Update 1.5 - Secret Realm & Rebalancing",
+    date: "June 2026",
+    tag: "BALANCING",
+    image: "https://i.postimg.cc/PfcKG2YT/16-20260701171102.png",
+    iconIsSun: true,
+    features: [
+      { icon: "🚀", color: "text-indigo-400", text: "Secret Realm stage expansion" },
+      { icon: "⚙️", color: "text-cyan-400", text: "Updated unit base values & demand ratings" }
+    ]
+  }
+];
+
+if (!dbState.roadmap || !Array.isArray(dbState.roadmap)) {
+  dbState.roadmap = [...defaultRoadmap];
+}
+if (!dbState.countdown || typeof dbState.countdown !== "object") {
+  dbState.countdown = { ...defaultCountdown };
+}
+if (!dbState.updateLogs || !Array.isArray(dbState.updateLogs)) {
+  dbState.updateLogs = [...defaultUpdateLogs];
 }
 
 let forbiddenWordsList: string[] = dbState.forbiddenWords || [];
@@ -395,6 +499,15 @@ async function saveDbToFirestore() {
       }),
       appStateCol.doc("bannedUsers").set({
         bannedUsers: bannedUsers
+      }),
+      appStateCol.doc("roadmap").set({
+        roadmap: dbState.roadmap
+      }),
+      appStateCol.doc("countdown").set({
+        countdown: dbState.countdown
+      }),
+      appStateCol.doc("updateLogs").set({
+        updateLogs: dbState.updateLogs
       })
     ]);
     console.log("Successfully synced database with Cloud Firestore.");
@@ -412,7 +525,7 @@ async function loadDbFromFirestore() {
   console.log("Loading database from Cloud Firestore...");
   try {
     const appStateCol = firestoreDb.collection("app_state");
-    const docsToFetch = ["config", "units", "signatures", "trades", "chats", "sessions", "reports", "bannedUsers"];
+    const docsToFetch = ["config", "units", "signatures", "trades", "chats", "sessions", "reports", "bannedUsers", "roadmap", "countdown", "updateLogs"];
     
     const results = await Promise.all(
       docsToFetch.map(async (docName) => {
@@ -438,10 +551,9 @@ async function loadDbFromFirestore() {
     }
     if (dataMap.units && Array.isArray(dataMap.units.units)) {
       dbState.units = dataMap.units.units;
+      cleanAndSyncUnits();
     }
-    if (dataMap.signatures && Array.isArray(dataMap.signatures.signatures)) {
-      dbState.signatures = dataMap.signatures.signatures;
-    }
+    dbState.signatures = [...defaultSignatures];
     if (dataMap.trades && Array.isArray(dataMap.trades.trades)) {
       activeTrades.length = 0;
       activeTrades.push(...dataMap.trades.trades);
@@ -464,9 +576,19 @@ async function loadDbFromFirestore() {
       bannedUsers.length = 0;
       bannedUsers.push(...dataMap.bannedUsers.bannedUsers);
     }
+    if (dataMap.roadmap && Array.isArray(dataMap.roadmap.roadmap)) {
+      dbState.roadmap = dataMap.roadmap.roadmap;
+    }
+    if (dataMap.countdown && typeof dataMap.countdown.countdown === "object") {
+      dbState.countdown = dataMap.countdown.countdown;
+    }
+    if (dataMap.updateLogs && Array.isArray(dataMap.updateLogs.updateLogs)) {
+      dbState.updateLogs = dataMap.updateLogs.updateLogs;
+    }
     
     isFirestoreLoaded = true;
     console.log("Successfully loaded database from Cloud Firestore.");
+    persistState();
   } catch (err: any) {
     console.error("Error loading database from Firestore (falling back to local JSON):", err?.message || err);
     // In case of Firestore load failure, disable Firestore and allow local writes as fallback
@@ -487,7 +609,10 @@ function persistState() {
     signatures: dbState.signatures,
     forbiddenWords: forbiddenWordsList,
     reports: activeReports,
-    bannedUsers: bannedUsers
+    bannedUsers: bannedUsers,
+    roadmap: dbState.roadmap,
+    countdown: dbState.countdown,
+    updateLogs: dbState.updateLogs
   });
 
   saveDbToFirestore().catch(err => console.error("Firestore sync error:", err));
@@ -616,6 +741,78 @@ async function startServer() {
     dbState.signatures = signatures;
     persistState();
     res.json({ success: true, signatures: dbState.signatures });
+  });
+
+  // Dynamic Roadmap Endpoints
+  app.get("/api/roadmap", (req, res) => {
+    res.json({ roadmap: dbState.roadmap || defaultRoadmap });
+  });
+
+  app.post("/api/roadmap", (req, res) => {
+    const sessionToken = req.headers.authorization;
+    const user = resolveSession(sessionToken);
+    if (!sessionToken || !user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const isAdmin = checkIsAdmin(user);
+    if (!isAdmin) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    const { roadmap } = req.body;
+    if (!Array.isArray(roadmap)) {
+      return res.status(400).json({ error: "Invalid roadmap list" });
+    }
+    dbState.roadmap = roadmap;
+    persistState();
+    res.json({ success: true, roadmap: dbState.roadmap });
+  });
+
+  // Dynamic Countdown Endpoints
+  app.get("/api/countdown", (req, res) => {
+    res.json({ countdown: dbState.countdown || defaultCountdown });
+  });
+
+  app.post("/api/countdown", (req, res) => {
+    const sessionToken = req.headers.authorization;
+    const user = resolveSession(sessionToken);
+    if (!sessionToken || !user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const isAdmin = checkIsAdmin(user);
+    if (!isAdmin) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    const { countdown } = req.body;
+    if (!countdown || typeof countdown !== "object") {
+      return res.status(400).json({ error: "Invalid countdown object" });
+    }
+    dbState.countdown = countdown;
+    persistState();
+    res.json({ success: true, countdown: dbState.countdown });
+  });
+
+  // Dynamic Update Logs Endpoints
+  app.get("/api/updates", (req, res) => {
+    res.json({ updates: dbState.updateLogs || defaultUpdateLogs });
+  });
+
+  app.post("/api/updates", (req, res) => {
+    const sessionToken = req.headers.authorization;
+    const user = resolveSession(sessionToken);
+    if (!sessionToken || !user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const isAdmin = checkIsAdmin(user);
+    if (!isAdmin) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    const { updates } = req.body;
+    if (!Array.isArray(updates)) {
+      return res.status(400).json({ error: "Invalid updates list" });
+    }
+    dbState.updateLogs = updates;
+    persistState();
+    res.json({ success: true, updates: dbState.updateLogs });
   });
 
   // Serve uploaded global music file
@@ -2103,8 +2300,9 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  const portNumber = typeof PORT === "number" ? PORT : parseInt(String(PORT), 10) || 3000;
+  app.listen(portNumber, "0.0.0.0", () => {
+    console.log(`Server running on http://localhost:${portNumber}`);
   });
 }
 

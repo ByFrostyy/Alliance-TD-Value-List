@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { X, ShieldAlert, Plus, Trash2, Music, Check, Settings, Sparkles, Gem, Upload, Search, Sliders, List, Volume2, VolumeX, Flag, Ban, Calendar, Eye, Trash, ShieldCheck, ChevronDown, Info } from "lucide-react";
+import { X, ShieldAlert, Plus, Trash2, Music, Check, Settings, Sparkles, Gem, Upload, Search, Sliders, List, Volume2, VolumeX, Flag, Ban, Calendar, Eye, Trash, ShieldCheck, ChevronDown, Info, Map, Clock, Rocket, Star, Wrench, CheckCircle2, Flame, Image as ImageIcon, ArrowUp, ArrowDown, Edit3, Save, History } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { Unit, SignValue, Upgrade } from "../types";
+import { Unit, SignValue, Upgrade, RoadmapItem, CountdownConfig, UpdateLog } from "../types";
 
 interface AdminPanelProps {
   isOpen: boolean;
@@ -9,7 +9,7 @@ interface AdminPanelProps {
   onRefreshData?: () => void;
 }
 
-type AdminTab = "admins_audio" | "units" | "signatures" | "forbidden_words" | "reports";
+type AdminTab = "admins_audio" | "units" | "signatures" | "forbidden_words" | "reports" | "roadmap" | "countdown" | "updates_log";
 
 const colorPresets = [
   { name: "Mythic Red", value: "#ef4444" },
@@ -147,6 +147,51 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
   const [isManualDurationOpen, setIsManualDurationOpen] = useState(false);
   const [isModalDurationOpen, setIsModalDurationOpen] = useState(false);
 
+  // Roadmap State
+  const [roadmapItems, setRoadmapItems] = useState<RoadmapItem[]>([]);
+  const [editingRoadmapIndex, setEditingRoadmapIndex] = useState<number | null>(null);
+  const [roadmapTitle, setRoadmapTitle] = useState("");
+  const [roadmapStatus, setRoadmapStatus] = useState<"planned" | "in-progress" | "completed">("planned");
+  const [roadmapDate, setRoadmapDate] = useState("");
+  const [roadmapDescription, setRoadmapDescription] = useState("");
+  const [roadmapIcon, setRoadmapIcon] = useState("Rocket");
+  const [roadmapImage, setRoadmapImage] = useState("");
+  const [roadmapFeaturesText, setRoadmapFeaturesText] = useState("");
+  const [savingRoadmap, setSavingRoadmap] = useState(false);
+
+  // Countdown State
+  const [countdownConfig, setCountdownConfig] = useState<CountdownConfig>({
+    enabled: true,
+    title: "🔨 Crafts + Secret Units ✨ UPDATE",
+    subtitle: "Target Release: Sun Aug 16, 2026, 18:00 (GMT+3)",
+    targetDate: "2026-08-16T18:00",
+    startDate: "2026-08-01T18:00",
+    description: "Hop into Alliance: TD and enjoy the new upcoming features & crafts!",
+    bannerImage: "https://i.postimg.cc/44b4qFry/16-20260701171125.png",
+    teaserImages: [
+      {
+        url: "https://i.postimg.cc/44b4qFry/16-20260701171125.png",
+        title: "Titan Camera Man",
+        description: "Exclusive Unit"
+      }
+    ]
+  });
+  const [savingCountdown, setSavingCountdown] = useState(false);
+  const [newTeaserUrl, setNewTeaserUrl] = useState("");
+  const [newTeaserTitle, setNewTeaserTitle] = useState("");
+  const [newTeaserDesc, setNewTeaserDesc] = useState("");
+
+  // Update Logs State
+  const [updateLogs, setUpdateLogs] = useState<UpdateLog[]>([]);
+  const [editingUpdateIndex, setEditingUpdateIndex] = useState<number | null>(null);
+  const [updateTitle, setUpdateTitle] = useState("");
+  const [updateDate, setUpdateDate] = useState("");
+  const [updateTag, setUpdateTag] = useState("MAJOR UPDATE");
+  const [updateImage, setUpdateImage] = useState("");
+  const [updateIconIsSun, setUpdateIconIsSun] = useState(false);
+  const [updateFeaturesText, setUpdateFeaturesText] = useState("");
+  const [savingUpdateLogs, setSavingUpdateLogs] = useState(false);
+
   useEffect(() => {
     if (isOpen) {
       setUnitsLoaded(false);
@@ -157,8 +202,318 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
       fetchForbiddenWords();
       fetchReports();
       fetchBannedUsers();
+      fetchRoadmap();
+      fetchCountdown();
+      fetchUpdateLogs();
     }
   }, [isOpen]);
+
+  const fetchUpdateLogs = async () => {
+    try {
+      const res = await fetch("/api/updates");
+      if (res.ok) {
+        const data = await res.json();
+        setUpdateLogs(data.updates || []);
+      }
+    } catch (e) {
+      console.error("Error fetching updates:", e);
+    }
+  };
+
+  const handleSaveUpdateLogs = async (updatedList?: UpdateLog[]) => {
+    setSavingUpdateLogs(true);
+    try {
+      const token = getAdminToken();
+      const listToSave = updatedList || updateLogs;
+      const res = await fetch("/api/updates", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": token
+        },
+        body: JSON.stringify({ updates: listToSave })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUpdateLogs(data.updates || []);
+        showToast("Update logs saved successfully!", "success");
+      } else {
+        showToast("Failed to save update logs.", "error");
+      }
+    } catch (e) {
+      showToast("Error saving update logs", "error");
+    } finally {
+      setSavingUpdateLogs(false);
+    }
+  };
+
+  const handleAddOrUpdateLogItem = () => {
+    if (!updateTitle.trim()) {
+      showToast("Please enter a title for the update log.", "error");
+      return;
+    }
+
+    const parsedFeatures = updateFeaturesText
+      .split("\n")
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .map(line => {
+        const parts = line.split("|").map(p => p.trim());
+        if (parts.length >= 3) {
+          return { icon: parts[0], text: parts[1], color: parts[2] };
+        } else if (parts.length === 2) {
+          return { icon: parts[0], text: parts[1], color: "text-indigo-400" };
+        } else {
+          return { icon: "✨", text: line, color: "text-indigo-400" };
+        }
+      });
+
+    const newLogItem: UpdateLog = {
+      id: editingUpdateIndex !== null ? updateLogs[editingUpdateIndex].id : `update-${Date.now()}`,
+      title: updateTitle.trim(),
+      date: updateDate.trim() || "TBA",
+      tag: updateTag.trim() || "UPDATE",
+      image: updateImage.trim() || "https://i.postimg.cc/44b4qFry/16-20260701171125.png",
+      iconIsSun: updateIconIsSun,
+      features: parsedFeatures
+    };
+
+    let updatedList: UpdateLog[];
+    if (editingUpdateIndex !== null) {
+      updatedList = [...updateLogs];
+      updatedList[editingUpdateIndex] = newLogItem;
+      setEditingUpdateIndex(null);
+    } else {
+      updatedList = [newLogItem, ...updateLogs];
+    }
+
+    setUpdateLogs(updatedList);
+    handleSaveUpdateLogs(updatedList);
+
+    setUpdateTitle("");
+    setUpdateDate("");
+    setUpdateTag("MAJOR UPDATE");
+    setUpdateImage("");
+    setUpdateIconIsSun(false);
+    setUpdateFeaturesText("");
+  };
+
+  const handleEditUpdateLogItem = (index: number) => {
+    const item = updateLogs[index];
+    setEditingUpdateIndex(index);
+    setUpdateTitle(item.title);
+    setUpdateDate(item.date);
+    setUpdateTag(item.tag || "UPDATE");
+    setUpdateImage(item.image);
+    setUpdateIconIsSun(!!item.iconIsSun);
+
+    const formattedFeatures = (item.features || [])
+      .map(f => `${f.icon} | ${f.text} | ${f.color || "text-indigo-400"}`)
+      .join("\n");
+    setUpdateFeaturesText(formattedFeatures);
+  };
+
+  const handleDeleteUpdateLogItem = (index: number) => {
+    const updatedList = updateLogs.filter((_, i) => i !== index);
+    setUpdateLogs(updatedList);
+    handleSaveUpdateLogs(updatedList);
+  };
+
+  const handleMoveUpdateLogItem = (index: number, direction: "up" | "down") => {
+    if ((direction === "up" && index === 0) || (direction === "down" && index === updateLogs.length - 1)) return;
+    const updatedList = [...updateLogs];
+    const targetIdx = direction === "up" ? index - 1 : index + 1;
+    const temp = updatedList[index];
+    updatedList[index] = updatedList[targetIdx];
+    updatedList[targetIdx] = temp;
+    setUpdateLogs(updatedList);
+    handleSaveUpdateLogs(updatedList);
+  };
+
+  const fetchRoadmap = async () => {
+    try {
+      const res = await fetch("/api/roadmap");
+      if (res.ok) {
+        const data = await res.json();
+        setRoadmapItems(data.roadmap || []);
+      }
+    } catch (e) {
+      console.error("Error fetching roadmap:", e);
+    }
+  };
+
+  const handleSaveRoadmap = async (updatedItems?: RoadmapItem[]) => {
+    setSavingRoadmap(true);
+    try {
+      const token = getAdminToken();
+      const itemsToSave = updatedItems || roadmapItems;
+      const res = await fetch("/api/roadmap", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": token
+        },
+        body: JSON.stringify({ roadmap: itemsToSave })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setRoadmapItems(data.roadmap || []);
+        showToast("Updates Roadmap saved successfully!", "success");
+        onRefreshData?.();
+      } else {
+        showToast("Failed to save roadmap.", "error");
+      }
+    } catch (err) {
+      showToast("Error saving roadmap", "error");
+    } finally {
+      setSavingRoadmap(false);
+    }
+  };
+
+  const handleAddOrUpdateRoadmapItem = () => {
+    if (!roadmapTitle.trim()) {
+      showToast("Please enter a title for the roadmap item.", "error");
+      return;
+    }
+
+    const featuresList = roadmapFeaturesText
+      .split("\n")
+      .map(f => f.trim())
+      .filter(Boolean);
+
+    const newItem: RoadmapItem = {
+      id: editingRoadmapIndex !== null ? roadmapItems[editingRoadmapIndex].id : Date.now().toString(),
+      title: roadmapTitle.trim(),
+      status: roadmapStatus,
+      date: roadmapDate.trim() || "TBA",
+      description: roadmapDescription.trim(),
+      icon: roadmapIcon,
+      image: roadmapImage.trim(),
+      features: featuresList
+    };
+
+    let updatedList: RoadmapItem[] = [];
+    if (editingRoadmapIndex !== null) {
+      updatedList = [...roadmapItems];
+      updatedList[editingRoadmapIndex] = newItem;
+      setEditingRoadmapIndex(null);
+    } else {
+      updatedList = [...roadmapItems, newItem];
+    }
+
+    setRoadmapItems(updatedList);
+    setRoadmapTitle("");
+    setRoadmapDate("");
+    setRoadmapDescription("");
+    setRoadmapImage("");
+    setRoadmapFeaturesText("");
+
+    handleSaveRoadmap(updatedList);
+  };
+
+  const handleEditRoadmapItem = (index: number) => {
+    const item = roadmapItems[index];
+    setEditingRoadmapIndex(index);
+    setRoadmapTitle(item.title);
+    setRoadmapStatus(item.status);
+    setRoadmapDate(item.date);
+    setRoadmapDescription(item.description);
+    setRoadmapIcon(item.icon || "Rocket");
+    setRoadmapImage(item.image || "");
+    setRoadmapFeaturesText(item.features ? item.features.join("\n") : "");
+  };
+
+  const handleDeleteRoadmapItem = (index: number) => {
+    const updatedList = roadmapItems.filter((_, i) => i !== index);
+    setRoadmapItems(updatedList);
+    if (editingRoadmapIndex === index) {
+      setEditingRoadmapIndex(null);
+      setRoadmapTitle("");
+      setRoadmapDate("");
+      setRoadmapDescription("");
+      setRoadmapImage("");
+      setRoadmapFeaturesText("");
+    }
+    handleSaveRoadmap(updatedList);
+  };
+
+  const handleMoveRoadmapItem = (index: number, direction: "up" | "down") => {
+    if ((direction === "up" && index === 0) || (direction === "down" && index === roadmapItems.length - 1)) return;
+    const targetIdx = direction === "up" ? index - 1 : index + 1;
+    const updatedList = [...roadmapItems];
+    const temp = updatedList[index];
+    updatedList[index] = updatedList[targetIdx];
+    updatedList[targetIdx] = temp;
+    setRoadmapItems(updatedList);
+    handleSaveRoadmap(updatedList);
+  };
+
+  const fetchCountdown = async () => {
+    try {
+      const res = await fetch("/api/countdown");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.countdown) {
+          setCountdownConfig(data.countdown);
+        }
+      }
+    } catch (e) {
+      console.error("Error fetching countdown:", e);
+    }
+  };
+
+  const handleSaveCountdown = async () => {
+    setSavingCountdown(true);
+    try {
+      const token = getAdminToken();
+      const res = await fetch("/api/countdown", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": token
+        },
+        body: JSON.stringify({ countdown: countdownConfig })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.countdown) {
+          setCountdownConfig(data.countdown);
+        }
+        showToast("Update Countdown saved successfully!", "success");
+        onRefreshData?.();
+      } else {
+        showToast("Failed to save countdown.", "error");
+      }
+    } catch (err) {
+      showToast("Error saving countdown", "error");
+    } finally {
+      setSavingCountdown(false);
+    }
+  };
+
+  const handleAddTeaserImage = () => {
+    if (!newTeaserUrl.trim()) {
+      showToast("Please provide an Image URL for the teaser.", "error");
+      return;
+    }
+    const newTeasers = [
+      ...(countdownConfig.teaserImages || []),
+      {
+        url: newTeaserUrl.trim(),
+        title: newTeaserTitle.trim() || `Teaser #${(countdownConfig.teaserImages?.length || 0) + 1}`,
+        description: newTeaserDesc.trim()
+      }
+    ];
+    setCountdownConfig({ ...countdownConfig, teaserImages: newTeasers });
+    setNewTeaserUrl("");
+    setNewTeaserTitle("");
+    setNewTeaserDesc("");
+  };
+
+  const handleRemoveTeaserImage = (index: number) => {
+    const newTeasers = (countdownConfig.teaserImages || []).filter((_, i) => i !== index);
+    setCountdownConfig({ ...countdownConfig, teaserImages: newTeasers });
+  };
 
   const fetchReports = async () => {
     setLoadingReports(true);
@@ -852,61 +1207,93 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex border-b border-white/5 pb-2 shrink-0 gap-2 select-none">
+        <div className="flex flex-wrap border-b border-white/5 pb-3 shrink-0 gap-2 select-none">
           <button
             onClick={() => setActiveTab("admins_audio")}
-            className={`py-2 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition ${
+            className={`py-2 px-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
               activeTab === "admins_audio"
-                ? "bg-white text-black border border-gray-200 shadow-sm"
-                : "text-gray-500 hover:text-black hover:bg-gray-100"
+                ? "bg-white text-black border border-white shadow-sm"
+                : "text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/5"
             }`}
           >
             Music Settings
           </button>
           <button
             onClick={() => setActiveTab("units")}
-            className={`py-2 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition ${
+            className={`py-2 px-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
               activeTab === "units"
-                ? "bg-white text-black border border-gray-200 shadow-sm"
-                : "text-gray-500 hover:text-black hover:bg-gray-100"
+                ? "bg-white text-black border border-white shadow-sm"
+                : "text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/5"
             }`}
           >
             Manage Units ({units.length})
           </button>
           <button
             onClick={() => setActiveTab("signatures")}
-            className={`py-2 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition ${
+            className={`py-2 px-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
               activeTab === "signatures"
-                ? "bg-white text-black border border-gray-200 shadow-sm"
-                : "text-gray-500 hover:text-black hover:bg-gray-100"
+                ? "bg-white text-black border border-white shadow-sm"
+                : "text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/5"
             }`}
           >
             Manage Signatures ({signatures.length})
           </button>
           <button
             onClick={() => setActiveTab("forbidden_words")}
-            className={`py-2 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition ${
+            className={`py-2 px-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
               activeTab === "forbidden_words"
-                ? "bg-white text-black border border-gray-200 shadow-sm"
-                : "text-gray-500 hover:text-black hover:bg-gray-100"
+                ? "bg-white text-black border border-white shadow-sm"
+                : "text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/5"
             }`}
           >
             Chat Bad Words ({forbiddenWords.length})
           </button>
           <button
             onClick={() => setActiveTab("reports")}
-            className={`py-2 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition flex items-center gap-1.5 ${
+            className={`py-2 px-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
               activeTab === "reports"
-                ? "bg-white text-black border border-gray-200 shadow-sm"
-                : "text-gray-500 hover:text-black hover:bg-gray-100"
+                ? "bg-white text-black border border-white shadow-sm"
+                : "text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/5"
             }`}
           >
-            <Flag className="w-3.5 h-3.5 text-black" /> Complaints & Bans
+            <Flag className={`w-3.5 h-3.5 ${activeTab === "reports" ? "text-black" : "text-slate-400"}`} /> Complaints & Bans
             {reports.filter(r => r.status === "active").length > 0 && (
-              <span className="bg-gray-900 text-white font-extrabold text-[9px] px-1.5 py-0.5 rounded-full">
+              <span className={`font-extrabold text-[9px] px-1.5 py-0.5 rounded-full ${
+                activeTab === "reports" ? "bg-black text-white" : "bg-rose-500 text-white"
+              }`}>
                 {reports.filter(r => r.status === "active").length}
               </span>
             )}
+          </button>
+          <button
+            onClick={() => setActiveTab("roadmap")}
+            className={`py-2 px-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
+              activeTab === "roadmap"
+                ? "bg-white text-black border border-white shadow-sm"
+                : "text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/5"
+            }`}
+          >
+            <Map className="w-3.5 h-3.5" /> Roadmap ({roadmapItems.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("countdown")}
+            className={`py-2 px-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
+              activeTab === "countdown"
+                ? "bg-white text-black border border-white shadow-sm"
+                : "text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/5"
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5" /> Countdown
+          </button>
+          <button
+            onClick={() => setActiveTab("updates_log")}
+            className={`py-2 px-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
+              activeTab === "updates_log"
+                ? "bg-white text-black border border-white shadow-sm"
+                : "text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/5"
+            }`}
+          >
+            <History className="w-3.5 h-3.5" /> Update Log ({updateLogs.length})
           </button>
         </div>
 
@@ -2293,6 +2680,587 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
                     </div>
                   )}
                 </AnimatePresence>
+              </motion.div>
+            )}
+
+            {/* Roadmap Tab Panel */}
+            {activeTab === "roadmap" && (
+              <motion.div
+                key="roadmap"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="flex flex-col gap-6"
+              >
+                {/* Form to Add / Edit Roadmap Item */}
+                <div className="bg-white/[0.02] border border-white/10 p-5 rounded-2xl flex flex-col gap-4">
+                  <div className="flex justify-between items-center border-b border-white/5 pb-3">
+                    <div className="flex items-center gap-2">
+                      <Map className="w-5 h-5 text-indigo-400" />
+                      <h4 className="text-sm font-black text-white uppercase tracking-wider">
+                        {editingRoadmapIndex !== null ? "Edit Roadmap Milestone" : "Add New Roadmap Milestone"}
+                      </h4>
+                    </div>
+                    {editingRoadmapIndex !== null && (
+                      <button
+                        onClick={() => {
+                          setEditingRoadmapIndex(null);
+                          setRoadmapTitle("");
+                          setRoadmapDate("");
+                          setRoadmapDescription("");
+                          setRoadmapImage("");
+                          setRoadmapFeaturesText("");
+                        }}
+                        className="text-xs text-rose-400 hover:text-rose-300 font-bold uppercase tracking-wider bg-rose-500/10 px-2.5 py-1 rounded-lg border border-rose-500/20"
+                      >
+                        Cancel Edit
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Title *</label>
+                      <input
+                        type="text"
+                        value={roadmapTitle}
+                        onChange={(e) => setRoadmapTitle(e.target.value)}
+                        placeholder="e.g. Update 2.0 - Secret Realm"
+                        className="bg-black/50 border border-white/10 focus:border-indigo-500/50 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Status</label>
+                      <select
+                        value={roadmapStatus}
+                        onChange={(e) => setRoadmapStatus(e.target.value as any)}
+                        className="bg-black/50 border border-white/10 focus:border-indigo-500/50 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                      >
+                        <option value="planned">Planned (Запланировано)</option>
+                        <option value="in-progress">In Progress (В разработке)</option>
+                        <option value="completed">Completed (Завершено)</option>
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Release Date / Label</label>
+                      <input
+                        type="text"
+                        value={roadmapDate}
+                        onChange={(e) => setRoadmapDate(e.target.value)}
+                        placeholder="e.g. August 2026 or TBA"
+                        className="bg-black/50 border border-white/10 focus:border-indigo-500/50 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Icon</label>
+                      <select
+                        value={roadmapIcon}
+                        onChange={(e) => setRoadmapIcon(e.target.value)}
+                        className="bg-black/50 border border-white/10 focus:border-indigo-500/50 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                      >
+                        <option value="Rocket">🚀 Rocket</option>
+                        <option value="Sparkles">✨ Sparkles</option>
+                        <option value="Flame">🔥 Flame</option>
+                        <option value="Wrench">🔧 Wrench</option>
+                        <option value="Clock">⏰ Clock</option>
+                        <option value="Star">⭐ Star</option>
+                        <option value="CheckCircle2">✅ CheckCircle</option>
+                        <option value="Map">🗺️ Map</option>
+                      </select>
+                    </div>
+
+                    <div className="sm:col-span-2 flex flex-col gap-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Card Preview Image URL (Optional)</label>
+                      <div className="flex gap-2 items-center">
+                        <input
+                          type="text"
+                          value={roadmapImage}
+                          onChange={(e) => setRoadmapImage(e.target.value)}
+                          placeholder="https://i.postimg.cc/..."
+                          className="flex-1 bg-black/50 border border-white/10 focus:border-indigo-500/50 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                        />
+                        {roadmapImage && (
+                          <div className="w-10 h-10 rounded-lg overflow-hidden border border-white/20 bg-black shrink-0">
+                            <img src={roadmapImage} alt="Preview" className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Description</label>
+                    <textarea
+                      value={roadmapDescription}
+                      onChange={(e) => setRoadmapDescription(e.target.value)}
+                      placeholder="Detailed description of what is coming in this milestone..."
+                      rows={2}
+                      className="bg-black/50 border border-white/10 focus:border-indigo-500/50 rounded-xl p-3 text-xs text-white focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Feature Highlights (One feature per line)</label>
+                    <textarea
+                      value={roadmapFeaturesText}
+                      onChange={(e) => setRoadmapFeaturesText(e.target.value)}
+                      placeholder="Alliance Tower Defense Major Update&#10;New Secret & Godly Units&#10;Trading Market Enhancements"
+                      rows={3}
+                      className="bg-black/50 border border-white/10 focus:border-indigo-500/50 rounded-xl p-3 text-xs text-white focus:outline-none font-mono"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-2">
+                    <button
+                      onClick={handleAddOrUpdateRoadmapItem}
+                      disabled={savingRoadmap}
+                      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition cursor-pointer flex items-center gap-2 shadow-lg shadow-indigo-600/20"
+                    >
+                      <Plus className="w-4 h-4" />
+                      {editingRoadmapIndex !== null ? "Update Roadmap Item" : "Add to Roadmap"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* List of Existing Roadmap Milestones */}
+                <div className="flex flex-col gap-3">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                      <List className="w-4 h-4 text-indigo-400" />
+                      Current Roadmap Items ({roadmapItems.length})
+                    </h4>
+                    <button
+                      onClick={() => handleSaveRoadmap()}
+                      disabled={savingRoadmap}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-lg shadow-emerald-600/20"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      {savingRoadmap ? "Saving..." : "Save All Changes"}
+                    </button>
+                  </div>
+
+                  {roadmapItems.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500 text-xs font-mono border border-dashed border-white/10 rounded-2xl">
+                      No roadmap milestones added yet. Create one above!
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {roadmapItems.map((item, idx) => (
+                        <div key={item.id || idx} className="bg-white/[0.02] border border-white/10 hover:border-white/20 p-4 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition">
+                          <div className="flex gap-3 items-center min-w-0 flex-1">
+                            {item.image ? (
+                              <div className="w-12 h-12 rounded-xl overflow-hidden border border-white/10 bg-black shrink-0">
+                                <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                              </div>
+                            ) : (
+                              <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                                <Map className="w-5 h-5 text-indigo-400" />
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h5 className="text-sm font-bold text-white truncate">{item.title}</h5>
+                                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${
+                                  item.status === "in-progress" ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30" :
+                                  item.status === "completed" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" :
+                                  "bg-slate-500/20 text-slate-300 border border-slate-500/30"
+                                }`}>
+                                  {item.status}
+                                </span>
+                                <span className="text-[10px] font-mono text-slate-400 bg-white/5 px-2 py-0.5 rounded-md">
+                                  {item.date}
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-400 line-clamp-1 mt-0.5">{item.description}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0 self-end md:self-auto">
+                            <button
+                              onClick={() => handleMoveRoadmapItem(idx, "up")}
+                              disabled={idx === 0}
+                              className="p-2 bg-white/5 hover:bg-white/10 disabled:opacity-30 text-slate-300 rounded-lg transition"
+                              title="Move Up"
+                            >
+                              <ArrowUp className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleMoveRoadmapItem(idx, "down")}
+                              disabled={idx === roadmapItems.length - 1}
+                              className="p-2 bg-white/5 hover:bg-white/10 disabled:opacity-30 text-slate-300 rounded-lg transition"
+                              title="Move Down"
+                            >
+                              <ArrowDown className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleEditRoadmapItem(idx)}
+                              className="p-2 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white rounded-lg transition"
+                              title="Edit Item"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteRoadmapItem(idx)}
+                              className="p-2 bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white rounded-lg transition"
+                              title="Delete Item"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Countdown Tab Panel */}
+            {activeTab === "countdown" && (
+              <motion.div
+                key="countdown"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="flex flex-col gap-6"
+              >
+                <div className="bg-white/[0.02] border border-white/10 p-5 rounded-2xl flex flex-col gap-5">
+                  <div className="flex justify-between items-center border-b border-white/5 pb-3">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-5 h-5 text-indigo-400" />
+                      <div>
+                        <h4 className="text-sm font-black text-white uppercase tracking-wider">Update Countdown Configuration</h4>
+                        <p className="text-[10px] text-slate-400 font-mono">Control target release date, banner image, title & teasers</p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleSaveCountdown}
+                      disabled={savingCountdown}
+                      className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition cursor-pointer flex items-center gap-2 shadow-lg shadow-indigo-600/20"
+                    >
+                      <Save className="w-4 h-4" />
+                      {savingCountdown ? "Saving..." : "Save Countdown Settings"}
+                    </button>
+                  </div>
+
+                  {/* Enable Switch */}
+                  <div className="flex items-center justify-between bg-black/40 border border-white/10 p-3.5 rounded-xl">
+                    <div>
+                      <span className="text-xs font-bold text-white uppercase tracking-wider block">Enable Countdown Banner</span>
+                      <span className="text-[10px] text-slate-400">Shows the live update timer box on the home page for all users</span>
+                    </div>
+                    <button
+                      onClick={() => setCountdownConfig({ ...countdownConfig, enabled: !countdownConfig.enabled })}
+                      className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition ${
+                        countdownConfig.enabled
+                          ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30"
+                          : "bg-zinc-800 text-slate-400 hover:bg-zinc-700"
+                      }`}
+                    >
+                      {countdownConfig.enabled ? "Active (On)" : "Disabled (Off)"}
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Update Title *</label>
+                      <input
+                        type="text"
+                        value={countdownConfig.title || ""}
+                        onChange={(e) => setCountdownConfig({ ...countdownConfig, title: e.target.value })}
+                        placeholder="🔨 Crafts + Secret Units ✨ UPDATE"
+                        className="bg-black/50 border border-white/10 focus:border-indigo-500/50 rounded-xl px-3 py-2 text-xs text-white focus:outline-none font-bold"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Subtitle / Date Label</label>
+                      <input
+                        type="text"
+                        value={countdownConfig.subtitle || ""}
+                        onChange={(e) => setCountdownConfig({ ...countdownConfig, subtitle: e.target.value })}
+                        placeholder="Target Release: Sun Aug 16, 2026, 18:00 (GMT+3)"
+                        className="bg-black/50 border border-white/10 focus:border-indigo-500/50 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Target Release Date & Time</label>
+                      <input
+                        type="text"
+                        value={countdownConfig.targetDate || ""}
+                        onChange={(e) => setCountdownConfig({ ...countdownConfig, targetDate: e.target.value })}
+                        placeholder="2026-08-16T18:00:00+03:00"
+                        className="bg-black/50 border border-white/10 focus:border-indigo-500/50 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none"
+                      />
+                      <span className="text-[9px] text-slate-500 font-mono">Format: YYYY-MM-DDTHH:mm:ss+03:00 or ISO date format</span>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Progress Start Date & Time</label>
+                      <input
+                        type="text"
+                        value={countdownConfig.startDate || ""}
+                        onChange={(e) => setCountdownConfig({ ...countdownConfig, startDate: e.target.value })}
+                        placeholder="2026-08-01T18:00:00+03:00"
+                        className="bg-black/50 border border-white/10 focus:border-indigo-500/50 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none"
+                      />
+                      <span className="text-[9px] text-slate-500 font-mono">Used to calculate deployment percentage bar</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Main Banner Image URL</label>
+                    <div className="flex gap-3 items-center">
+                      <input
+                        type="text"
+                        value={countdownConfig.bannerImage || ""}
+                        onChange={(e) => setCountdownConfig({ ...countdownConfig, bannerImage: e.target.value })}
+                        placeholder="https://i.postimg.cc/44b4qFry/16-20260701171125.png"
+                        className="flex-1 bg-black/50 border border-white/10 focus:border-indigo-500/50 rounded-xl px-3 py-2 text-xs text-white focus:outline-none font-mono"
+                      />
+                      {countdownConfig.bannerImage && (
+                        <div className="w-16 h-10 rounded-lg overflow-hidden border border-white/20 bg-black shrink-0">
+                          <img src={countdownConfig.bannerImage} alt="Banner Preview" className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Update Description</label>
+                    <textarea
+                      value={countdownConfig.description || ""}
+                      onChange={(e) => setCountdownConfig({ ...countdownConfig, description: e.target.value })}
+                      placeholder="Hop into Alliance: TD and enjoy the new upcoming features & crafts!"
+                      rows={2}
+                      className="bg-black/50 border border-white/10 focus:border-indigo-500/50 rounded-xl p-3 text-xs text-white focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Update Log Tab Panel */}
+            {activeTab === "updates_log" && (
+              <motion.div
+                key="updates_log"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="flex flex-col gap-6"
+              >
+                {/* Form to Create / Edit Update Log */}
+                <div className="bg-white/[0.02] border border-white/10 p-5 rounded-2xl flex flex-col gap-4">
+                  <div className="flex justify-between items-center border-b border-white/5 pb-3">
+                    <div className="flex items-center gap-2">
+                      <History className="w-5 h-5 text-indigo-400" />
+                      <h4 className="text-sm font-black text-white uppercase tracking-wider">
+                        {editingUpdateIndex !== null ? "Edit Update Log" : "Add New Update Log"}
+                      </h4>
+                    </div>
+                    {editingUpdateIndex !== null && (
+                      <button
+                        onClick={() => {
+                          setEditingUpdateIndex(null);
+                          setUpdateTitle("");
+                          setUpdateDate("");
+                          setUpdateTag("MAJOR UPDATE");
+                          setUpdateImage("");
+                          setUpdateIconIsSun(false);
+                          setUpdateFeaturesText("");
+                        }}
+                        className="text-xs text-slate-400 hover:text-white underline cursor-pointer"
+                      >
+                        Cancel Editing
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Update Title *</label>
+                      <input
+                        type="text"
+                        value={updateTitle}
+                        onChange={(e) => setUpdateTitle(e.target.value)}
+                        placeholder="e.g. Update 2.0 - Crafting & Trading System"
+                        className="bg-black/50 border border-white/10 focus:border-indigo-500/50 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="flex grid grid-cols-2 gap-2">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Release Date Label</label>
+                        <input
+                          type="text"
+                          value={updateDate}
+                          onChange={(e) => setUpdateDate(e.target.value)}
+                          placeholder="e.g. July 2026"
+                          className="bg-black/50 border border-white/10 focus:border-indigo-500/50 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Tag / Badge</label>
+                        <input
+                          type="text"
+                          value={updateTag}
+                          onChange={(e) => setUpdateTag(e.target.value)}
+                          placeholder="e.g. MAJOR UPDATE"
+                          className="bg-black/50 border border-white/10 focus:border-indigo-500/50 rounded-xl px-3 py-2 text-xs text-white focus:outline-none font-bold text-indigo-300"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Cover Image URL</label>
+                      <input
+                        type="text"
+                        value={updateImage}
+                        onChange={(e) => setUpdateImage(e.target.value)}
+                        placeholder="https://..."
+                        className="bg-black/50 border border-white/10 focus:border-indigo-500/50 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                      />
+                      {updateImage && (
+                        <div className="w-full h-24 rounded-xl overflow-hidden border border-white/10 mt-1.5 bg-black">
+                          <img src={updateImage} alt="Cover Preview" className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Header Icon Type</label>
+                      <button
+                        type="button"
+                        onClick={() => setUpdateIconIsSun(!updateIconIsSun)}
+                        className={`px-4 py-2.5 rounded-xl border border-white/10 text-xs font-bold transition flex items-center justify-between cursor-pointer ${
+                          updateIconIsSun ? "bg-amber-500/20 text-amber-300 border-amber-500/40" : "bg-indigo-500/20 text-indigo-300 border-indigo-500/40"
+                        }`}
+                      >
+                        <span>Header Icon: {updateIconIsSun ? "Sun (☀️)" : "Sparkles (✨)"}</span>
+                        <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-black/40">Toggle</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Features List (1 item per line)</label>
+                      <span className="text-[10px] text-slate-500 font-mono">Format: icon | text | color</span>
+                    </div>
+                    <textarea
+                      value={updateFeaturesText}
+                      onChange={(e) => setUpdateFeaturesText(e.target.value)}
+                      placeholder={`✨ | New Godly Unit Crafting recipes added | text-amber-400\n🔥 | Real-time Community Trading System | text-rose-400\n⚡ | Value Calculator algorithm optimizations | text-indigo-400`}
+                      rows={4}
+                      className="bg-black/50 border border-white/10 focus:border-indigo-500/50 rounded-xl p-3 text-xs text-white focus:outline-none font-mono"
+                    />
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      onClick={handleAddOrUpdateLogItem}
+                      disabled={savingUpdateLogs}
+                      className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition cursor-pointer flex items-center gap-2 shadow-lg shadow-indigo-600/20"
+                    >
+                      <Plus className="w-4 h-4" />
+                      {editingUpdateIndex !== null ? "Update Log Item" : "Add Log Item"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* List of Existing Update Logs */}
+                <div className="bg-white/[0.02] border border-white/10 p-5 rounded-2xl flex flex-col gap-4">
+                  <div className="flex justify-between items-center border-b border-white/5 pb-3">
+                    <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                      <List className="w-4 h-4 text-indigo-400" />
+                      Published Update Logs ({updateLogs.length})
+                    </h4>
+                    {updateLogs.length > 0 && (
+                      <button
+                        onClick={() => handleSaveUpdateLogs()}
+                        disabled={savingUpdateLogs}
+                        className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        {savingUpdateLogs ? "Saving..." : "Save Order"}
+                      </button>
+                    )}
+                  </div>
+
+                  {updateLogs.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500 text-xs font-mono">
+                      No update logs created yet. Use the form above to publish your first log!
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      {updateLogs.map((log, idx) => (
+                        <div
+                          key={log.id}
+                          className="bg-black/40 border border-white/10 p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-white/20 transition"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-12 h-12 rounded-lg overflow-hidden border border-white/10 bg-black shrink-0">
+                              <img src={log.image} alt={log.title} className="w-full h-full object-cover" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-black text-white truncate">{log.title}</span>
+                                {log.tag && (
+                                  <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded bg-blue-600/30 border border-blue-500/40 text-blue-300">
+                                    {log.tag}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                {log.date} • {log.features?.length || 0} features listed
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 self-end sm:self-center">
+                            <button
+                              onClick={() => handleMoveUpdateLogItem(idx, "up")}
+                              disabled={idx === 0}
+                              className="p-1.5 bg-white/5 hover:bg-white/10 text-slate-300 disabled:opacity-30 rounded-lg transition"
+                              title="Move Up"
+                            >
+                              <ArrowUp className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleMoveUpdateLogItem(idx, "down")}
+                              disabled={idx === updateLogs.length - 1}
+                              className="p-1.5 bg-white/5 hover:bg-white/10 text-slate-300 disabled:opacity-30 rounded-lg transition"
+                              title="Move Down"
+                            >
+                              <ArrowDown className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleEditUpdateLogItem(idx)}
+                              className="p-1.5 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white rounded-lg transition"
+                              title="Edit Log"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUpdateLogItem(idx)}
+                              className="p-1.5 bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white rounded-lg transition"
+                              title="Delete Log"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>

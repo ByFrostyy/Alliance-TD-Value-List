@@ -71,3 +71,31 @@ export interface TradeOfferItem {
   sign: SignValue;
   qty: number;
 }
+
+export interface RoadmapItem {
+  id: string;
+  title: string;
+  status: "planned" | "in-progress" | "completed";
+  date: string;
+  description: string;
+  icon?: string;
+  image?: string;
+  features: string[];
+}
+
+export interface TeaserImage {
+  url: string;
+  title?: string;
+  description?: string;
+}
+
+export interface CountdownConfig {
+  enabled: boolean;
+  title: string;
+  subtitle?: string;
+  targetDate: string;
+  startDate?: string;
+  description?: string;
+  bannerImage?: string;
+  teaserImages?: TeaserImage[];
+}

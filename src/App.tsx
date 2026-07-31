@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { AdminPanel } from "./components/AdminPanel";
-import { Gem, History, Map, Calendar, Swords, TrendingUp, Sparkles, Compass, ShieldAlert, ArrowRightLeft, Wrench, Lock, Unlock, AlertTriangle, Volume2, VolumeX, Music, Upload, Trash2, ExternalLink, Info, FileText } from "lucide-react";
+import { Gem, History, Map, Calendar, Swords, TrendingUp, Sparkles, Compass, ShieldAlert, ArrowRightLeft, Wrench, Lock, Unlock, AlertTriangle, Volume2, VolumeX, Music, Upload, Trash2, ExternalLink, Info, FileText, Clock } from "lucide-react";
 import ValuePage from "./components/ValuePage";
 import TradeCalculator from "./components/TradeCalculator";
 import UpdatesLog from "./components/UpdatesLog";
@@ -12,7 +12,7 @@ import { UpdatesRoadmap } from "./components/UpdatesRoadmap";
 import { startAmbientMusic, stopAmbientMusic, setAmbientMusicVolume, playGlobalClick } from "./utils/audio";
 import { Unit, SignValue } from "./types";
 
-type TabId = "value-list" | "calculator" | "updates-log" | "roadmap" | "community-trades" | "links";
+type TabId = "value-list" | "calculator" | "updates-log" | "roadmap" | "countdown" | "community-trades" | "links";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>(() => {
@@ -395,6 +395,7 @@ export default function App() {
     { id: "links" as TabId, label: "Main Page", icon: Sparkles, color: "text-zinc-300", activeGlow: "border-zinc-500 bg-white/[0.04]" },
     { id: "updates-log" as TabId, label: "Updates Log", icon: History, color: "text-zinc-300", activeGlow: "border-zinc-500 bg-white/[0.04]" },
     { id: "roadmap" as TabId, label: "Updates Roadmap", icon: Map, color: "text-zinc-300", activeGlow: "border-zinc-500 bg-white/[0.04]" },
+    { id: "countdown" as TabId, label: "Countdown", icon: Clock, color: "text-zinc-300", activeGlow: "border-zinc-500 bg-white/[0.04]" },
     { id: "value-list" as TabId, label: "Value List", icon: Compass, color: "text-zinc-300", activeGlow: "border-zinc-500 bg-white/[0.04]" },
     { id: "calculator" as TabId, label: "Trade Calculator", icon: Swords, color: "text-zinc-300", activeGlow: "border-zinc-500 bg-white/[0.04]" },
     { id: "community-trades" as TabId, label: "Community Trades", icon: ArrowRightLeft, color: "text-zinc-300", activeGlow: "border-zinc-500 bg-white/[0.04]" }
@@ -715,8 +716,6 @@ export default function App() {
 
         {/* Active Content Body */}
         <AdminPanel isOpen={isAdminPanelOpen} onClose={() => setIsAdminPanelOpen(false)} onRefreshData={fetchDynamicData} />
-        
-
 
         <main className="relative z-10 mb-8 min-h-[50vh]">
           <AnimatePresence mode="wait">
@@ -727,6 +726,7 @@ export default function App() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
             >
+              {activeTab === "countdown" && <Countdown />}
               {activeTab === "value-list" && <ValuePage units={dynamicUnits} />}
               {activeTab === "calculator" && <TradeCalculator units={dynamicUnits} signatures={dynamicSignatures} />}
               {activeTab === "community-trades" && <CommunityTrades units={dynamicUnits} signatures={dynamicSignatures} />}

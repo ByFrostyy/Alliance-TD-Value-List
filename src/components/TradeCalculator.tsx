@@ -11,7 +11,7 @@ const rarityClasses: Record<string, { bg: string; text: string; shadow: string; 
   Uncommon: { bg: "bg-emerald-500/5", text: "text-emerald-400", shadow: "shadow-none", border: "border-white/5", activeBorder: "border-emerald-500/30", hoverBg: "hover:bg-zinc-800/50", hoverText: "hover:text-emerald-300", accentGlow: "rgba(16,185,129,0.1)" },
   Rare: { bg: "bg-sky-500/5", text: "text-sky-400", shadow: "shadow-none", border: "border-white/5", activeBorder: "border-sky-500/30", hoverBg: "hover:bg-zinc-800/50", hoverText: "hover:text-sky-300", accentGlow: "rgba(14,165,233,0.1)" },
   Epic: { bg: "bg-purple-500/5", text: "text-purple-400", shadow: "shadow-none", border: "border-white/5", activeBorder: "border-purple-500/30", hoverBg: "hover:bg-zinc-800/50", hoverText: "hover:text-purple-300", accentGlow: "rgba(147,51,234,0.1)" },
-  Legendary: { bg: "bg-amber-500/5", text: "text-amber-400", shadow: "shadow-none", border: "border-white/5", activeBorder: "border-amber-500/30", hoverBg: "hover:bg-zinc-800/50", hoverText: "hover:text-amber-300", accentGlow: "rgba(245,158,11,0.1)" },
+  Legendary: { bg: "bg-yellow-500/5", text: "text-yellow-400", shadow: "shadow-none", border: "border-white/5", activeBorder: "border-yellow-500/30", hoverBg: "hover:bg-zinc-800/50", hoverText: "hover:text-yellow-300", accentGlow: "rgba(234,179,8,0.1)" },
   Mythic: { bg: "bg-rose-500/5", text: "text-rose-400", shadow: "shadow-none", border: "border-white/5", activeBorder: "border-rose-500/30", hoverBg: "hover:bg-zinc-800/50", hoverText: "hover:text-rose-300", accentGlow: "rgba(225,29,72,0.1)" },
   Exclusive: { bg: "bg-indigo-500/5", text: "text-white", shadow: "shadow-none", border: "border-white/5", activeBorder: "border-indigo-500/30", hoverBg: "hover:bg-zinc-800/50", hoverText: "hover:text-indigo-300", accentGlow: "rgba(79,70,229,0.1)" },
   Godly: { bg: "bg-cyan-500/5", text: "text-cyan-400", shadow: "shadow-none", border: "border-white/5", activeBorder: "border-cyan-500/30", hoverBg: "hover:bg-zinc-800/50", hoverText: "hover:text-cyan-300", accentGlow: "rgba(6,182,212,0.1)" },
@@ -976,7 +976,7 @@ export default function TradeCalculator({ units: propUnits, signatures: propSign
                       rarityName === "Uncommon" ? "bg-emerald-400" :
                       rarityName === "Rare" ? "bg-sky-400" :
                       rarityName === "Epic" ? "bg-purple-400" :
-                      rarityName === "Legendary" ? "bg-amber-400" :
+                      rarityName === "Legendary" ? "bg-yellow-400" :
                       rarityName === "Mythic" ? "bg-rose-400" :
                       rarityName === "Exclusive" ? "bg-indigo-400" : "bg-amber-600";
 
@@ -1060,7 +1060,7 @@ export default function TradeCalculator({ units: propUnits, signatures: propSign
                                 unit.rarity === "Uncommon" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.15)]" :
                                 unit.rarity === "Rare" ? "bg-blue-500/10 text-blue-400 border-blue-500/20 shadow-[0_0_8px_rgba(59,130,246,0.15)]" :
                                 unit.rarity === "Epic" ? "bg-purple-500/10 text-purple-400 border-purple-500/20 shadow-[0_0_8px_rgba(147,51,234,0.15)]" :
-                                unit.rarity === "Legendary" ? "bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-[0_0_8px_rgba(245,158,11,0.15)]" :
+                                unit.rarity === "Legendary" ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20 shadow-[0_0_8px_rgba(234,179,8,0.15)]" :
                                 unit.rarity === "Mythic" ? "bg-rose-500/10 text-rose-400 border-rose-500/20 shadow-[0_0_8px_rgba(225,29,72,0.15)]" :
                                 unit.rarity === "Exclusive" ? "bg-white/5 text-white border-white/10 shadow-[0_0_8px_rgba(79,70,229,0.15)]" :
                                 unit.rarity === "Crate" ? "bg-amber-600/10 text-amber-550 border-amber-600/20 shadow-[0_0_8px_rgba(217,119,6,0.15)]" :
