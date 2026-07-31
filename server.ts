@@ -122,7 +122,7 @@ function checkIsAdmin(user: any) {
 
 function resolveSession(sessionToken: string | undefined): any {
   if (!sessionToken) return null;
-  const adminPassword = process.env.ADMIN_PASSWORD || "kP7$mX9!vR2@bN5#qZ4*";
+  const adminPassword = process.env.ADMIN_PASSWORD || "aK9#mP2$vL8!qZ5@wN3&rY7*bT1^uJ4%xV6#Qm9$";
   if (sessionToken === adminPassword) {
     const bypassToken = "session_bypass_auto";
     sessions[bypassToken] = {
@@ -618,11 +618,12 @@ function persistState() {
   saveDbToFirestore().catch(err => console.error("Firestore sync error:", err));
 }
 
-async function startServer() {
+export const app = express();
+
+export const initPromise = (async () => {
   await loadDbFromFirestore();
   persistState();
 
-  const app = express();
   app.set("trust proxy", 1);
   app.use(express.json({ limit: "50mb" }));
 
@@ -640,7 +641,7 @@ async function startServer() {
 
   app.post("/api/maintenance/toggle", (req, res) => {
     const { password, active } = req.body;
-    const adminPassword = process.env.ADMIN_PASSWORD || "kP7$mX9!vR2@bN5#qZ4*";
+    const adminPassword = process.env.ADMIN_PASSWORD || "aK9#mP2$vL8!qZ5@wN3&rY7*bT1^uJ4%xV6#Qm9$";
     if (password !== adminPassword) {
       return res.status(403).json({ error: "Invalid admin password" });
     }
@@ -2286,24 +2287,28 @@ async function startServer() {
 
   // --- VITE MIDDLEWARE SETUP ---
 
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
+  } else if (!process.env.VERCEL) {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
+})();
 
-  const portNumber = typeof PORT === "number" ? PORT : parseInt(String(PORT), 10) || 3000;
-  app.listen(portNumber, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${portNumber}`);
+if (!process.env.VERCEL && process.env.NODE_ENV !== "test") {
+  initPromise.then(() => {
+    const portNumber = typeof PORT === "number" ? PORT : parseInt(String(PORT), 10) || 3000;
+    app.listen(portNumber, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${portNumber}`);
+    });
   });
 }
 
-startServer();
+export default app;

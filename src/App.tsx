@@ -311,11 +311,12 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const bypassParam = params.get("bypass") || params.get("admin") || params.get("dev") || params.get("admin_key");
     if (bypassParam) {
-      if (bypassParam === "kP7$mX9!vR2@bN5#qZ4*" || bypassParam === "true" || bypassParam === "1") {
+      if (bypassParam === "aK9#mP2$vL8!qZ5@wN3&rY7*bT1^uJ4%xV6#Qm9$" || bypassParam === "kP7$mX9!vR2@bN5#qZ4*" || bypassParam === "true" || bypassParam === "1") {
         try {
           localStorage.setItem("origin_admin_bypass", "true");
-          localStorage.setItem("origin_admin_password", "kP7$mX9!vR2@bN5#qZ4*");
+          localStorage.setItem("origin_admin_password", "aK9#mP2$vL8!qZ5@wN3&rY7*bT1^uJ4%xV6#Qm9$");
           setIsBypassed(true);
+          setIsAdminPanelOpen(true);
           // Clean up the URL query params
           window.history.replaceState({}, document.title, window.location.pathname);
         } catch (e) {
@@ -346,6 +347,8 @@ export default function App() {
           setIsAdminUser(true);
         }
         setIsBypassed(true);
+        setIsAdminPanelOpen(true);
+        setShowAdminForm(false);
         setAdminError("");
       } else {
         setAdminError("Invalid admin password!");
@@ -357,7 +360,7 @@ export default function App() {
 
   const handleToggleMaintenance = async (newVal: boolean) => {
     setIsUpdatingMode(true);
-    const password = localStorage.getItem("origin_admin_password") || "kP7$mX9!vR2@bN5#qZ4*";
+    const password = localStorage.getItem("origin_admin_password") || "aK9#mP2$vL8!qZ5@wN3&rY7*bT1^uJ4%xV6#Qm9$";
     try {
       const res = await fetch("/api/maintenance/toggle", {
         method: "POST",
@@ -368,7 +371,7 @@ export default function App() {
         const data = await res.json();
         setMaintenanceActive(data.active);
       } else {
-        const customPass = prompt("Password changed or not saved. Enter admin password:", "kP7$mX9!vR2@bN5#qZ4*");
+        const customPass = prompt("Password changed or not saved. Enter admin password:", "aK9#mP2$vL8!qZ5@wN3&rY7*bT1^uJ4%xV6#Qm9$");
         if (customPass) {
           const retryRes = await fetch("/api/maintenance/toggle", {
             method: "POST",
@@ -519,9 +522,9 @@ export default function App() {
             </button>
             <button
               onClick={() => setIsAdminPanelOpen(true)}
-              className="text-[9px] text-zinc-400 hover:text-zinc-300 underline uppercase tracking-wider cursor-pointer"
+              className="text-[10px] text-zinc-300 hover:text-white font-bold uppercase tracking-wider cursor-pointer bg-white/10 hover:bg-white/20 px-2.5 py-1 rounded-lg border border-white/10 transition"
             >
-              Manage Admins
+              Admin Panel
             </button>
           </div>
         </div>
