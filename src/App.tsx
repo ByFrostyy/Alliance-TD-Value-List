@@ -394,18 +394,30 @@ export default function App() {
   const handleToggleMaintenance = async (newVal: boolean) => {
     setIsUpdatingMode(true);
     const password = localStorage.getItem("origin_admin_password") || "aK9#mP2$vL8!qZ5@wN3&rY7*bT1^uJ4%xV6#Qm9$";
+    const adminNickname = adminNicknameInput || localStorage.getItem("origin_admin_nickname") || "Admin";
+    const userSessionToken = localStorage.getItem("lttd_rb_session");
     try {
       const res = await fetch("/api/maintenance/toggle", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password, active: newVal })
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": userSessionToken || ""
+        },
+        body: JSON.stringify({ 
+          password, 
+          active: newVal,
+          adminNickname,
+          userSessionToken
+        })
       });
       if (res.ok) {
         const data = await res.json();
         setMaintenanceActive(data.active);
       } else {
         const errData = await res.json().catch(() => ({}));
-        setAdminError(errData.error || "Failed to update maintenance status. Invalid admin password.");
+        const errMsg = errData.error || "Failed to update maintenance status. Invalid admin password.";
+        setAdminError(errMsg);
+        alert(errMsg);
       }
     } catch (err) {
       alert("Failed to update maintenance status on the server.");

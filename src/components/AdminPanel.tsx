@@ -1519,7 +1519,7 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
                               )}
                               {log.unread && <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />}
                             </div>
-                            <span className="text-[10px] text-slate-400">{log.text || log.userAgent}</span>
+                            <span className="text-[10px] text-slate-400">{log.text}</span>
                           </div>
                           <span className="text-[10px] text-slate-500 shrink-0">
                             {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
@@ -1591,7 +1591,6 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
                                     <span className="text-[10px] text-emerald-400 font-bold">(Current Session)</span>
                                   )}
                                 </div>
-                                <span className="text-[10px] text-slate-400 truncate max-w-xs">{sess.userAgent}</span>
                               </div>
                             </div>
 
