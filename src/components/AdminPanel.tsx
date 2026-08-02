@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, ShieldAlert, Plus, Trash2, Music, Check, Settings, Sparkles, Gem, Upload, Search, Sliders, List, Volume2, VolumeX, Flag, Ban, Calendar, Eye, Trash, ShieldCheck, ChevronDown, Info, Map, Clock, Rocket, Star, Wrench, CheckCircle2, Flame, Image as ImageIcon, ArrowUp, ArrowDown, Edit3, Save, History } from "lucide-react";
+import { X, ShieldAlert, Plus, Trash2, Music, Check, Settings, Sparkles, Gem, Upload, Search, Sliders, List, Volume2, VolumeX, Flag, Ban, Calendar, Eye, Trash, ShieldCheck, ChevronDown, Info, Map, Clock, Rocket, Star, Wrench, CheckCircle2, Flame, Image as ImageIcon, ArrowUp, ArrowDown, Edit3, Save, History, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Unit, SignValue, Upgrade, RoadmapItem, CountdownConfig, UpdateLog } from "../types";
 
@@ -9,7 +9,7 @@ interface AdminPanelProps {
   onRefreshData?: () => void;
 }
 
-type AdminTab = "admins_audio" | "units" | "signatures" | "forbidden_words" | "reports" | "roadmap" | "countdown" | "updates_log";
+type AdminTab = "admins_audio" | "audit_logs" | "units" | "signatures" | "forbidden_words" | "reports" | "roadmap" | "countdown" | "updates_log";
 
 const colorPresets = [
   { name: "Mythic Red", value: "#ef4444" },
@@ -82,6 +82,15 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
   const [clickSoundSaving, setClickSoundSaving] = useState(false);
   const [clickSoundUploading, setClickSoundUploading] = useState(false);
 
+  // Admin Security & Active Sessions State
+  const [activeAdminSessions, setActiveAdminSessions] = useState<any[]>([]);
+  const [adminLoginLogs, setAdminLoginLogs] = useState<any[]>([]);
+  const [adminAuditLogs, setAdminAuditLogs] = useState<any[]>([]);
+  const [auditSearchQuery, setAuditSearchQuery] = useState("");
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [currentSessionToken, setCurrentSessionToken] = useState("");
+  const [kickingToken, setKickingToken] = useState<string | null>(null);
+
   // Dynamic Content State
   const [unitsLoaded, setUnitsLoaded] = useState(false);
   const [units, setUnits] = useState<Unit[]>([]);
@@ -141,7 +150,7 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
     { value: "1440", label: "24 Hours (Severe violation)" },
     { value: "10080", label: "7 Days (Repeat offenses)" },
     { value: "permanent", label: "Permanent Ban (Forever)" },
-    { value: "custom", label: "Custom Time... (Кастомный мут)" }
+    { value: "custom", label: "Custom Duration..." }
   ];
 
   const [isManualDurationOpen, setIsManualDurationOpen] = useState(false);
@@ -192,6 +201,94 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
   const [updateFeaturesText, setUpdateFeaturesText] = useState("");
   const [savingUpdateLogs, setSavingUpdateLogs] = useState(false);
 
+  const fetchAdminSessionsAndLogs = async () => {
+    try {
+      const token = getAdminToken();
+      if (!token) return;
+      const res = await fetch("/api/admin/sessions", {
+        headers: { "Authorization": token }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setIsSuperAdmin(!!data.isSuperAdmin);
+        setCurrentSessionToken(data.currentSessionToken || "");
+        setActiveAdminSessions(data.activeSessions || []);
+        setAdminLoginLogs(data.loginLogs || []);
+      } else if (res.status === 401) {
+        const data = await res.json();
+        if (data.kicked) {
+          localStorage.removeItem("origin_admin_bypass");
+          localStorage.removeItem("origin_admin_password");
+          localStorage.removeItem("lttd_rb_session");
+          onClose();
+          alert("Your access to the Admin Panel was revoked by the Master Admin!");
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch admin sessions:", err);
+    }
+  };
+
+  const fetchAuditLogs = async () => {
+    try {
+      const token = getAdminToken();
+      if (!token) return;
+      const res = await fetch("/api/admin/audit-logs", {
+        headers: { "Authorization": token }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAdminAuditLogs(data.auditLogs || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch audit logs:", err);
+    }
+  };
+
+  const handleKickAdminSession = async (targetSessionToken: string) => {
+    triggerConfirm(
+      "Revoke Admin Session?",
+      "Are you sure you want to revoke access for this admin session? They will need to log in again.",
+      async () => {
+        setKickingToken(targetSessionToken);
+        try {
+          const token = getAdminToken();
+          const res = await fetch("/api/admin/sessions/kick", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": token },
+            body: JSON.stringify({ targetSessionToken })
+          });
+          if (res.ok) {
+            showToast("Admin session successfully revoked!", "success");
+            fetchAdminSessionsAndLogs();
+            fetchAuditLogs();
+          } else {
+            const errData = await res.json();
+            showToast(errData.error || "Failed to revoke session", "error");
+          }
+        } catch (err) {
+          showToast("Error sending revoke request", "error");
+        } finally {
+          setKickingToken(null);
+        }
+      }
+    );
+  };
+
+  const handleMarkLogsAsRead = async () => {
+    try {
+      const token = getAdminToken();
+      await fetch("/api/admin/logs/read", {
+        method: "POST",
+        headers: { "Authorization": token }
+      });
+      setAdminLoginLogs(prev => prev.map(l => ({ ...l, unread: false })));
+      showToast("All notifications marked as read", "info");
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       setUnitsLoaded(false);
@@ -205,6 +302,15 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
       fetchRoadmap();
       fetchCountdown();
       fetchUpdateLogs();
+      fetchAdminSessionsAndLogs();
+      fetchAuditLogs();
+
+      const interval = setInterval(() => {
+        fetchAdminSessionsAndLogs();
+        fetchAuditLogs();
+      }, 4000);
+
+      return () => clearInterval(interval);
     }
   }, [isOpen]);
 
@@ -1210,13 +1316,26 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
         <div className="flex flex-wrap border-b border-white/5 pb-3 shrink-0 gap-2 select-none">
           <button
             onClick={() => setActiveTab("admins_audio")}
-            className={`py-2 px-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+            className={`py-2 px-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer flex items-center gap-2 ${
               activeTab === "admins_audio"
                 ? "bg-white text-black border border-white shadow-sm"
                 : "text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/5"
             }`}
           >
-            Music Settings
+            <span>Security & Music</span>
+            {adminLoginLogs.some(l => l.unread) && (
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab("audit_logs")}
+            className={`py-2 px-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 ${
+              activeTab === "audit_logs"
+                ? "bg-white text-black border border-white shadow-sm"
+                : "text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/5"
+            }`}
+          >
+            <History className="w-3.5 h-3.5" /> Audit Logs ({adminAuditLogs.length})
           </button>
           <button
             onClick={() => setActiveTab("units")}
@@ -1308,6 +1427,162 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
                 exit={{ opacity: 0, y: -10 }}
                 className="flex flex-col gap-6"
               >
+                {/* 1. Admin Login Notifications Card */}
+                <div className="bg-red-950/20 border border-red-500/20 p-5 rounded-2xl flex flex-col gap-4 relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 bg-red-500/20 rounded-xl text-red-400">
+                        <ShieldAlert className="w-5 h-5 animate-pulse" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                          Panel Login Notifications
+                          {adminLoginLogs.filter(l => l.unread).length > 0 && (
+                            <span className="px-2 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-black animate-bounce">
+                              {adminLoginLogs.filter(l => l.unread).length} NEW
+                            </span>
+                          )}
+                        </h4>
+                        <p className="text-[11px] text-slate-400 font-mono">Real-time alerts whenever an administrator logs into the Admin Panel</p>
+                      </div>
+                    </div>
+                    {adminLoginLogs.some(l => l.unread) && (
+                      <button
+                        onClick={handleMarkLogsAsRead}
+                        className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-slate-200 transition cursor-pointer"
+                      >
+                        Mark as Read
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="max-h-48 overflow-y-auto divide-y divide-white/5 bg-black/40 border border-white/5 rounded-xl p-2 font-mono scrollbar-thin">
+                    {adminLoginLogs.length === 0 ? (
+                      <div className="text-center py-6 text-xs text-slate-500">Login logs are empty. Everything is secure!</div>
+                    ) : (
+                      adminLoginLogs.map(log => (
+                        <div key={log.id} className={`p-2.5 flex items-start justify-between gap-3 text-xs ${log.unread ? "bg-red-500/10 rounded-lg border border-red-500/20" : ""}`}>
+                          <div className="flex flex-col gap-1 text-left">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                                log.isSuperAdmin ? "bg-amber-500/20 text-amber-300 border border-amber-500/30" : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                              }`}>
+                                {log.isSuperAdmin ? "Master Owner" : "Admin"}
+                              </span>
+                              <span className="text-white font-bold">
+                                {log.adminName || log.discordTag || "Admin User"}
+                              </span>
+                              {log.discordTag && (
+                                <span className="text-indigo-400 font-bold text-[10px] bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
+                                  {log.discordTag}
+                                </span>
+                              )}
+                              {log.unread && <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />}
+                            </div>
+                            <span className="text-[10px] text-slate-400">{log.text || log.userAgent}</span>
+                          </div>
+                          <span className="text-[10px] text-slate-500 shrink-0">
+                            {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* 2. Active Admin Sessions & Kick Controls */}
+                <div className="bg-white/[0.02] border border-white/10 p-5 rounded-2xl flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 bg-indigo-500/20 rounded-xl text-indigo-400">
+                        <ShieldCheck className="w-5 h-5" />
+                      </div>
+                      <div className="text-left">
+                        <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                          Active Admin Sessions ({activeAdminSessions.length})
+                        </h4>
+                        <p className="text-[11px] text-slate-400 font-mono">
+                          {isSuperAdmin
+                            ? "⭐ Only you (Master Admin) have full permissions to revoke active sessions."
+                            : "🔒 Only the Master Admin has permissions to revoke other active admin sessions."}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    {activeAdminSessions.length === 0 ? (
+                      <div className="text-center py-4 text-xs text-slate-500">No active admin sessions found.</div>
+                    ) : (
+                      activeAdminSessions.map(sess => {
+                        const isCurrent = sess.sessionToken === currentSessionToken;
+                        return (
+                          <div
+                            key={sess.sessionToken}
+                            className={`p-3.5 rounded-xl border flex items-center justify-between gap-4 ${
+                              isCurrent
+                                ? "bg-emerald-500/5 border-emerald-500/30"
+                                : "bg-black/30 border-white/5"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`w-3 h-3 rounded-full ${isCurrent ? "bg-emerald-400 animate-pulse" : "bg-zinc-500"}`} />
+                              <div className="flex flex-col gap-0.5 text-left font-mono">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-xs font-bold text-white">
+                                    {sess.adminName || sess.discordTag || "Administrator"}
+                                  </span>
+                                  {sess.discordTag && (
+                                    <span className="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold">
+                                      Discord: {sess.discordTag}
+                                    </span>
+                                  )}
+                                  {sess.robloxName && sess.robloxName !== sess.adminName && (
+                                    <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px] font-mono">
+                                      {sess.robloxName}
+                                    </span>
+                                  )}
+                                  <span className={`px-2 py-0.2 rounded text-[9px] font-black uppercase ${
+                                    sess.isSuperAdmin ? "bg-amber-500/20 text-amber-300" : "bg-blue-500/20 text-blue-300"
+                                  }`}>
+                                    {sess.isSuperAdmin ? "Master Admin (You)" : "Administrator"}
+                                  </span>
+                                  {isCurrent && (
+                                    <span className="text-[10px] text-emerald-400 font-bold">(Current Session)</span>
+                                  )}
+                                </div>
+                                <span className="text-[10px] text-slate-400 truncate max-w-xs">{sess.userAgent}</span>
+                              </div>
+                            </div>
+
+                            {/* KICK BUTTON (Only visible to Super Admin for non-current sessions) */}
+                            {!isCurrent && (
+                              <div>
+                                {isSuperAdmin ? (
+                                  <button
+                                    onClick={() => handleKickAdminSession(sess.sessionToken)}
+                                    disabled={kickingToken === sess.sessionToken}
+                                    className="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition shadow-lg cursor-pointer select-none"
+                                    title="Revoke session access"
+                                  >
+                                    <Ban className="w-3.5 h-3.5" />
+                                    {kickingToken === sess.sessionToken ? "Revoking..." : "Revoke Session"}
+                                  </button>
+                                ) : (
+                                  <span className="text-[10px] text-slate-500 font-mono italic">
+                                    Protected by Master Admin
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* 3. Global Background Music Player */}
                 <div className="bg-white/[0.02] border border-white/5 p-5 rounded-2xl flex flex-col gap-4">
                   <div className="flex items-center gap-2">
                     <Music className="w-5 h-5 text-zinc-300" />
@@ -1355,7 +1630,7 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
                       </button>
                     </div>
                     <p className="text-[10px] text-slate-500 leading-relaxed font-mono">
-                      Current play route: <span className="text-zinc-300">{globalMusicUrl || "Phonk (default)"}</span>
+                      Current play route: <span className="text-zinc-300">{globalMusicUrl || "Muted / No Music Set"}</span>
                     </p>
                   </div>
                 </div>
@@ -1420,6 +1695,91 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
                     <p className="text-[10px] text-slate-500 leading-relaxed font-mono">
                       Current play route: <span className="text-zinc-300">{globalClickSoundUrl || "Muted / No Click Sound (default)"}</span>
                     </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === "audit_logs" && (
+              <motion.div
+                key="audit_logs"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="flex flex-col gap-6"
+              >
+                <div className="bg-white/[0.02] border border-white/10 p-5 rounded-2xl flex flex-col gap-4">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 bg-purple-500/20 rounded-xl text-purple-400">
+                        <History className="w-5 h-5" />
+                      </div>
+                      <div className="text-left">
+                        <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                          Admin Action Audit Logs ({adminAuditLogs.length})
+                        </h4>
+                        <p className="text-[11px] text-slate-400 font-mono">
+                          Track remote changes, additions, deletions, unit updates, and moderation actions
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          value={auditSearchQuery}
+                          onChange={(e) => setAuditSearchQuery(e.target.value)}
+                          placeholder="Search logs..."
+                          className="bg-black/50 border border-white/10 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 font-mono"
+                        />
+                      </div>
+                      <button
+                        onClick={fetchAuditLogs}
+                        className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
+                        title="Refresh Logs"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="max-h-[500px] overflow-y-auto divide-y divide-white/5 bg-black/40 border border-white/5 rounded-xl p-2 font-mono scrollbar-thin">
+                    {adminAuditLogs.length === 0 ? (
+                      <div className="text-center py-10 text-xs text-slate-500">
+                        No admin audit logs recorded yet. Actions taken in the admin panel will appear here.
+                      </div>
+                    ) : (
+                      adminAuditLogs
+                        .filter(log => {
+                          if (!auditSearchQuery.trim()) return true;
+                          const q = auditSearchQuery.toLowerCase();
+                          return (
+                            (log.adminName && log.adminName.toLowerCase().includes(q)) ||
+                            (log.action && log.action.toLowerCase().includes(q)) ||
+                            (log.details && log.details.toLowerCase().includes(q))
+                          );
+                        })
+                        .map(log => (
+                          <div key={log.id} className="p-3 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs hover:bg-white/[0.02] rounded-lg transition">
+                            <div className="flex flex-col gap-1 text-left">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-black uppercase">
+                                  {log.adminName || "Admin"}
+                                </span>
+                                <span className="text-white font-black">{log.action}</span>
+                              </div>
+                              <p className="text-[11px] text-slate-300 bg-black/40 p-2 rounded-lg border border-white/5 font-mono text-left break-all">
+                                {log.details}
+                              </p>
+                            </div>
+                            <span className="text-[10px] text-slate-500 shrink-0 font-mono self-start md:self-center">
+                              {new Date(log.timestamp).toLocaleString()}
+                            </span>
+                          </div>
+                        ))
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -2385,10 +2745,10 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
                               <label className="text-[9px] font-black text-rose-400 uppercase tracking-wide">Time Unit</label>
                               <div className="grid grid-cols-2 gap-1 bg-black/40 p-1 border border-rose-500/10 rounded-xl">
                                 {[
-                                  { value: "seconds", label: "sec (сек)" },
-                                  { value: "minutes", label: "min (мин)" },
-                                  { value: "hours", label: "hr (час)" },
-                                  { value: "days", label: "day (дн)" }
+                                  { value: "seconds", label: "sec" },
+                                  { value: "minutes", label: "min" },
+                                  { value: "hours", label: "hr" },
+                                  { value: "days", label: "day" }
                                 ].map((u) => (
                                   <button
                                     key={u.value}
@@ -2574,10 +2934,10 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
                                 <label className="text-[9px] font-black text-rose-400 uppercase font-bold">Time Unit</label>
                                 <div className="grid grid-cols-2 gap-1 bg-black/40 p-1 border border-rose-500/10 rounded-xl">
                                   {[
-                                    { value: "seconds", label: "sec (сек)" },
-                                    { value: "minutes", label: "min (мин)" },
-                                    { value: "hours", label: "hr (час)" },
-                                    { value: "days", label: "day (дн)" }
+                                    { value: "seconds", label: "sec" },
+                                    { value: "minutes", label: "min" },
+                                    { value: "hours", label: "hr" },
+                                    { value: "days", label: "day" }
                                   ].map((u) => (
                                     <button
                                       key={u.value}
@@ -2737,9 +3097,9 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
                         onChange={(e) => setRoadmapStatus(e.target.value as any)}
                         className="bg-black/50 border border-white/10 focus:border-indigo-500/50 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
                       >
-                        <option value="planned">Planned (Запланировано)</option>
-                        <option value="in-progress">In Progress (В разработке)</option>
-                        <option value="completed">Completed (Завершено)</option>
+                        <option value="planned">Planned</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="completed">Completed</option>
                       </select>
                     </div>
 

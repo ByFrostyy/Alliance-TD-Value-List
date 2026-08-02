@@ -76,6 +76,7 @@ interface RobloxUser {
   isDiscord?: boolean;
   discordId?: string;
   isAdmin?: boolean;
+  isSuperAdmin?: boolean;
 }
 
 interface CounterOffer {
@@ -116,25 +117,47 @@ const sessions: Record<string, RobloxUser> = {};
 function checkIsAdmin(user: any) {
   if (!user) return false;
   if (user.isAdmin) return true;
-  if (user.email && ["begzodfaezullaev@gmail.com", "faezullaevbegzod@gmail.com", "begodfaezullaev@gmail.com"].map(e => e.toLowerCase()).includes(user.email.toLowerCase())) return true;
   return false;
 }
 
 function resolveSession(sessionToken: string | undefined): any {
   if (!sessionToken) return null;
   const adminPassword = process.env.ADMIN_PASSWORD || "aK9#mP2$vL8!qZ5@wN3&rY7*bT1^uJ4%xV6#Qm9$";
+
+  if (activeAdminSessions[sessionToken]?.isKicked) {
+    return null;
+  }
+
   if (sessionToken === adminPassword) {
     const bypassToken = "session_bypass_auto";
+    if (activeAdminSessions[bypassToken]?.isKicked) return null;
     sessions[bypassToken] = {
       id: 999999999,
-      name: "Admin",
-      displayName: "Admin",
+      name: "Master Admin",
+      displayName: "Master Super Admin (Owner)",
       avatar: "https://img.icons8.com/color/48/shield.png",
       isAdmin: true,
+      isSuperAdmin: true,
     };
+    if (!activeAdminSessions[bypassToken]) {
+      activeAdminSessions[bypassToken] = {
+        sessionToken: bypassToken,
+        ip: "127.0.0.1",
+        userAgent: "Master Password Auto Session",
+        isSuperAdmin: true,
+        loginTime: new Date().toISOString(),
+        lastSeen: new Date().toISOString(),
+        isKicked: false,
+      };
+    }
     return sessions[bypassToken];
   }
-  return sessions[sessionToken] || null;
+
+  const userSess = sessions[sessionToken];
+  if (!userSess) return null;
+  if (activeAdminSessions[sessionToken]?.isKicked) return null;
+
+  return userSess;
 }
 
 function getHashCode(str: string): number {
@@ -323,6 +346,22 @@ activeReports.forEach(r => {
 });
 const bannedUsers: any[] = dbState.bannedUsers || [];
 Object.assign(sessions, dbState.sessions || {});
+const adminLoginLogs: any[] = dbState.adminLoginLogs || [];
+const activeAdminSessions: Record<string, any> = dbState.activeAdminSessions || {};
+const adminAuditLogs: any[] = dbState.adminAuditLogs || [];
+
+function logAdminAction(adminName: string, action: string, details: string) {
+  const entry = {
+    id: "audit_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+    timestamp: new Date().toISOString(),
+    adminName: adminName || "Admin",
+    action,
+    details
+  };
+  adminAuditLogs.unshift(entry);
+  if (adminAuditLogs.length > 200) adminAuditLogs.pop();
+  persistState();
+}
 let maintenanceModeActive = dbState.maintenanceModeActive || false;
 let globalMusicUrl = dbState.globalMusicUrl || "";
 let globalClickSoundUrl = dbState.globalClickSoundUrl || "";
@@ -508,6 +547,11 @@ async function saveDbToFirestore() {
       }),
       appStateCol.doc("updateLogs").set({
         updateLogs: dbState.updateLogs
+      }),
+      appStateCol.doc("adminSecurity").set({
+        adminLoginLogs,
+        activeAdminSessions,
+        adminAuditLogs
       })
     ]);
     console.log("Successfully synced database with Cloud Firestore.");
@@ -525,7 +569,7 @@ async function loadDbFromFirestore() {
   console.log("Loading database from Cloud Firestore...");
   try {
     const appStateCol = firestoreDb.collection("app_state");
-    const docsToFetch = ["config", "units", "signatures", "trades", "chats", "sessions", "reports", "bannedUsers", "roadmap", "countdown", "updateLogs"];
+    const docsToFetch = ["config", "units", "signatures", "trades", "chats", "sessions", "reports", "bannedUsers", "roadmap", "countdown", "updateLogs", "adminSecurity"];
     
     const results = await Promise.all(
       docsToFetch.map(async (docName) => {
@@ -585,6 +629,19 @@ async function loadDbFromFirestore() {
     if (dataMap.updateLogs && Array.isArray(dataMap.updateLogs.updateLogs)) {
       dbState.updateLogs = dataMap.updateLogs.updateLogs;
     }
+    if (dataMap.adminSecurity) {
+      if (Array.isArray(dataMap.adminSecurity.adminLoginLogs)) {
+        adminLoginLogs.length = 0;
+        adminLoginLogs.push(...dataMap.adminSecurity.adminLoginLogs);
+      }
+      if (dataMap.adminSecurity.activeAdminSessions && typeof dataMap.adminSecurity.activeAdminSessions === "object") {
+        Object.assign(activeAdminSessions, dataMap.adminSecurity.activeAdminSessions);
+      }
+      if (Array.isArray(dataMap.adminSecurity.adminAuditLogs)) {
+        adminAuditLogs.length = 0;
+        adminAuditLogs.push(...dataMap.adminSecurity.adminAuditLogs);
+      }
+    }
     
     isFirestoreLoaded = true;
     console.log("Successfully loaded database from Cloud Firestore.");
@@ -612,7 +669,8 @@ function persistState() {
     bannedUsers: bannedUsers,
     roadmap: dbState.roadmap,
     countdown: dbState.countdown,
-    updateLogs: dbState.updateLogs
+    updateLogs: dbState.updateLogs,
+    adminAuditLogs
   });
 
   saveDbToFirestore().catch(err => console.error("Firestore sync error:", err));
@@ -640,25 +698,166 @@ export const initPromise = (async () => {
   });
 
   app.post("/api/maintenance/toggle", (req, res) => {
-    const { password, active } = req.body;
+    const { password, active, adminNickname, userSessionToken } = req.body;
     const adminPassword = process.env.ADMIN_PASSWORD || "aK9#mP2$vL8!qZ5@wN3&rY7*bT1^uJ4%xV6#Qm9$";
     if (password !== adminPassword) {
       return res.status(403).json({ error: "Invalid admin password" });
     }
+
+    const clientIp = String(req.headers["x-forwarded-for"] || req.ip || "127.0.0.1").split(",")[0].trim();
+    const userAgent = String(req.headers["user-agent"] || "Unknown Device");
+    const isSuper = (password === adminPassword);
+
+    const userToken = userSessionToken || req.headers.authorization;
+    const existingTradeUser = resolveSession(userToken);
+
+    let finalNick = (adminNickname || "").trim();
+    if (!finalNick && existingTradeUser) {
+      finalNick = existingTradeUser.name ? `@${existingTradeUser.name}` : existingTradeUser.displayName;
+    }
+
+    if (!finalNick && !existingTradeUser) {
+      return res.status(400).json({
+        error: "Admin Nickname or Discord login required! Please enter your nickname or sign in with Discord/Roblox first."
+      });
+    }
+
     maintenanceModeActive = !!active;
+
+    const sessionToken = `session_admin_${Math.random().toString(36).substring(2)}${Date.now().toString(36)}`;
     
-    const sessionToken = `session_dev_${Math.random().toString(36).substring(2)}${Date.now().toString(36)}`;
+    const discordTag = existingTradeUser?.name ? `@${existingTradeUser.name}` : (finalNick.startsWith("@") ? finalNick : `@${finalNick}`);
+    const robloxName = existingTradeUser?.displayName || existingTradeUser?.name || finalNick;
+    const adminDisplay = finalNick || (isSuper ? "Master Admin" : "Admin");
+
     const loggedUser = {
-      id: 999999999,
-      name: "Admin",
-      displayName: "Admin",
-      avatar: "https://img.icons8.com/color/48/shield.png",
+      id: existingTradeUser?.id || 999999999,
+      name: adminDisplay,
+      displayName: existingTradeUser?.displayName ? `${adminDisplay} (${existingTradeUser.displayName})` : adminDisplay,
+      avatar: existingTradeUser?.avatar || "https://img.icons8.com/color/48/shield.png",
+      discordId: existingTradeUser?.discordId || undefined,
+      discordTag: discordTag,
       isAdmin: true,
+      isSuperAdmin: isSuper,
     };
     sessions[sessionToken] = loggedUser;
 
+    activeAdminSessions[sessionToken] = {
+      sessionToken,
+      adminName: adminDisplay,
+      discordTag: discordTag,
+      robloxName: robloxName,
+      discordId: existingTradeUser?.discordId || undefined,
+      userAgent,
+      isSuperAdmin: isSuper,
+      loginTime: new Date().toISOString(),
+      lastSeen: new Date().toISOString(),
+      isKicked: false,
+    };
+
+    const userDisplayLabel = existingTradeUser?.name 
+      ? `@${existingTradeUser.name} (${existingTradeUser.displayName || adminDisplay})` 
+      : `${adminDisplay} (${discordTag})`;
+
+    const logEntry = {
+      id: "log_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+      timestamp: new Date().toISOString(),
+      adminName: adminDisplay,
+      discordTag: discordTag,
+      userAgent,
+      isSuperAdmin: isSuper,
+      sessionToken,
+      unread: true,
+      text: `🚨 Admin Login Alert: User ${userDisplayLabel} logged into Admin Panel`
+    };
+    adminLoginLogs.unshift(logEntry);
+    if (adminLoginLogs.length > 100) adminLoginLogs.pop();
+
+    logAdminAction(adminDisplay, "Admin Login", `Logged into panel as ${userDisplayLabel}`);
+
     persistState();
-    res.json({ success: true, active: maintenanceModeActive, sessionToken });
+    res.json({ success: true, active: maintenanceModeActive, sessionToken, isSuperAdmin: isSuper, adminName: adminDisplay, discordTag });
+  });
+
+  // --- Admin Security & Active Sessions Endpoints ---
+  app.get("/api/admin/sessions", (req, res) => {
+    const sessionToken = req.headers.authorization;
+    const user = resolveSession(sessionToken);
+
+    if (!sessionToken || !user || !checkIsAdmin(user)) {
+      return res.status(401).json({ error: "Unauthorized / Session Revoked", kicked: true });
+    }
+
+    if (activeAdminSessions[sessionToken]) {
+      activeAdminSessions[sessionToken].lastSeen = new Date().toISOString();
+    }
+
+    const currentUserIsSuper = !!user.isSuperAdmin || sessionToken === (process.env.ADMIN_PASSWORD || "aK9#mP2$vL8!qZ5@wN3&rY7*bT1^uJ4%xV6#Qm9$");
+    const activeList = Object.values(activeAdminSessions).filter(s => !s.isKicked);
+
+    res.json({
+      success: true,
+      isSuperAdmin: currentUserIsSuper,
+      currentSessionToken: sessionToken,
+      activeSessions: activeList,
+      loginLogs: adminLoginLogs,
+    });
+  });
+
+  app.post("/api/admin/sessions/kick", (req, res) => {
+    const sessionToken = req.headers.authorization;
+    const user = resolveSession(sessionToken);
+
+    if (!sessionToken || !user || !checkIsAdmin(user)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const isSuper = !!user.isSuperAdmin || sessionToken === (process.env.ADMIN_PASSWORD || "aK9#mP2$vL8!qZ5@wN3&rY7*bT1^uJ4%xV6#Qm9$");
+    if (!isSuper) {
+      return res.status(403).json({ error: "Access Denied: Only Master Super Admin has permission to kick admin sessions!" });
+    }
+
+    const { targetSessionToken } = req.body;
+    if (!targetSessionToken) {
+      return res.status(400).json({ error: "targetSessionToken is required" });
+    }
+
+    if (targetSessionToken === sessionToken) {
+      return res.status(400).json({ error: "Cannot kick your own active Master session!" });
+    }
+
+    if (activeAdminSessions[targetSessionToken]) {
+      activeAdminSessions[targetSessionToken].isKicked = true;
+    }
+    delete sessions[targetSessionToken];
+
+    adminLoginLogs.unshift({
+      id: "log_kick_" + Date.now(),
+      timestamp: new Date().toISOString(),
+      userAgent: `Session kicked by Master Admin`,
+      isSuperAdmin: true,
+      sessionToken: targetSessionToken,
+      unread: true,
+      text: `⛔ Session ${targetSessionToken.substring(0, 10)}... was KICKED out of Admin Panel by Master Admin`
+    });
+
+    persistState();
+    res.json({ success: true, message: "Admin session kicked successfully!" });
+  });
+
+  app.post("/api/admin/logs/read", (req, res) => {
+    adminLoginLogs.forEach(l => l.unread = false);
+    persistState();
+    res.json({ success: true });
+  });
+
+  app.get("/api/admin/audit-logs", (req, res) => {
+    const sessionToken = req.headers.authorization;
+    const user = resolveSession(sessionToken);
+    if (!sessionToken || !user || !checkIsAdmin(user)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    res.json({ success: true, auditLogs: adminAuditLogs });
   });
 
   // Admin Emails Management
@@ -692,6 +891,7 @@ export const initPromise = (async () => {
       return res.status(403).json({ error: "Forbidden" });
     }
     globalMusicUrl = typeof url === "string" ? url.trim() : "";
+    logAdminAction(user.displayName || user.name, "Update Music URL", globalMusicUrl || "Muted/Custom Track");
     persistState();
     res.json({ success: true, globalMusicUrl });
   });
@@ -716,6 +916,7 @@ export const initPromise = (async () => {
       return res.status(400).json({ error: "Invalid units list" });
     }
     dbState.units = units;
+    logAdminAction(user.displayName || user.name, "Update Units Database", `Saved ${units.length} total units`);
     persistState();
     res.json({ success: true, units: dbState.units });
   });
@@ -740,6 +941,7 @@ export const initPromise = (async () => {
       return res.status(400).json({ error: "Invalid signatures list" });
     }
     dbState.signatures = signatures;
+    logAdminAction(user.displayName || user.name, "Update Signatures List", `Saved ${signatures.length} signatures`);
     persistState();
     res.json({ success: true, signatures: dbState.signatures });
   });
@@ -764,6 +966,7 @@ export const initPromise = (async () => {
       return res.status(400).json({ error: "Invalid roadmap list" });
     }
     dbState.roadmap = roadmap;
+    logAdminAction(user.displayName || user.name, "Update Roadmap Items", `Saved ${roadmap.length} items`);
     persistState();
     res.json({ success: true, roadmap: dbState.roadmap });
   });
@@ -788,6 +991,7 @@ export const initPromise = (async () => {
       return res.status(400).json({ error: "Invalid countdown object" });
     }
     dbState.countdown = countdown;
+    logAdminAction(user.displayName || user.name, "Update Countdown Timer", `Target: ${countdown.targetTime} (${countdown.title})`);
     persistState();
     res.json({ success: true, countdown: dbState.countdown });
   });
@@ -812,6 +1016,7 @@ export const initPromise = (async () => {
       return res.status(400).json({ error: "Invalid updates list" });
     }
     dbState.updateLogs = updates;
+    logAdminAction(user.displayName || user.name, "Update Change Logs", `Saved ${updates.length} log entries`);
     persistState();
     res.json({ success: true, updates: dbState.updateLogs });
   });
@@ -1318,11 +1523,6 @@ export const initPromise = (async () => {
     const avatarNum = getHashCode(cleanUsername) % 6;
     const avatarUrl = `https://cdn.discordapp.com/embed/avatars/${avatarNum}.png`;
     
-    // Check if they want an Admin role or regular user (for testing)
-    const isAdminUser = ["admin", "begzod", "begzodfaezullaev", "begzodfaezullaev@gmail.com"].some(
-      kw => cleanUsername.toLowerCase().includes(kw)
-    );
-    
     const loggedUser: RobloxUser = {
       id: getHashCode(cleanUsername) || 9991234,
       name: cleanUsername.toLowerCase().replace(/[^a-z0-9]/g, "_"),
@@ -1330,7 +1530,7 @@ export const initPromise = (async () => {
       avatar: avatarUrl,
       isDiscord: true,
       discordId: `demo_${getHashCode(cleanUsername)}`,
-      email: isAdminUser ? "begzodfaezullaev@gmail.com" : `${cleanUsername.toLowerCase().replace(/[^a-z0-9]/g, "")}@demo-trade.com`
+      email: `${cleanUsername.toLowerCase().replace(/[^a-z0-9]/g, "")}@demo-trade.com`
     };
     
     sessions[sessionToken] = loggedUser;
@@ -1548,7 +1748,13 @@ export const initPromise = (async () => {
       return res.status(401).json({ error: "You must be logged in to list a trade!" });
     }
 
- 
+    const muteCheck = isUserMuted(user.id, user.name, user.discordId);
+    if (muteCheck.muted) {
+      return res.status(403).json({
+        error: `You are currently muted/restricted and cannot post trades in the Trade Community. Reason: ${muteCheck.reason || "Muted by staff"}`
+      });
+    }
+
     if ((!yourOffer || yourOffer.length === 0) && yourGems <= 0) {
       return res.status(400).json({ error: "Your offer must contain at least one unit or some amount of Gems!" });
     }
@@ -1590,6 +1796,12 @@ export const initPromise = (async () => {
       return res.status(401).json({ error: "Authentication required" });
     }
 
+    const muteCheck = isUserMuted(user.id, user.name, user.discordId);
+    if (muteCheck.muted) {
+      return res.status(403).json({
+        error: `You are currently muted/restricted and cannot send counter offers. Reason: ${muteCheck.reason || "Muted by staff"}`
+      });
+    }
 
     const { offerText } = req.body;
     if (!offerText || !offerText.trim()) {
@@ -1789,6 +2001,7 @@ export const initPromise = (async () => {
     const cleanWord = word.trim().toLowerCase();
     if (!forbiddenWordsList.includes(cleanWord)) {
       forbiddenWordsList.push(cleanWord);
+      logAdminAction(user.displayName || user.name, "Add Forbidden Word", `Added word: "${cleanWord}"`);
       persistState();
     }
     res.json({ success: true, forbiddenWords: forbiddenWordsList });
@@ -1810,6 +2023,7 @@ export const initPromise = (async () => {
       return res.status(400).json({ error: "Word is required" });
     }
     forbiddenWordsList = forbiddenWordsList.filter(w => w.toLowerCase() !== word.toLowerCase());
+    logAdminAction(user.displayName || user.name, "Delete Forbidden Word", `Removed word: "${word}"`);
     persistState();
     res.json({ success: true, forbiddenWords: forbiddenWordsList });
   });
@@ -2167,6 +2381,7 @@ export const initPromise = (async () => {
     }
 
     report.status = status || "resolved";
+    logAdminAction(user.displayName || user.name, "Resolve Report", `Marked report #${id} as ${report.status}`);
     persistState();
 
     res.json({ success: true, report });
@@ -2242,6 +2457,11 @@ export const initPromise = (async () => {
     };
 
     bannedUsers.unshift(newBan);
+    logAdminAction(
+      user.displayName || user.name,
+      newBan.isMute ? "Mute User" : "Ban User",
+      `Target: ${targetUsername || targetUserId} | Reason: ${newBan.reason} | Expires: ${expiresAt}`
+    );
     persistState();
 
     res.json({ success: true, ban: newBan });
@@ -2279,7 +2499,13 @@ export const initPromise = (async () => {
       return res.status(404).json({ error: "User is not muted" });
     }
 
+    const removedUser = bannedUsers[idx];
     bannedUsers.splice(idx, 1);
+    logAdminAction(
+      user.displayName || user.name,
+      "Unban/Unmute User",
+      `Target: ${removedUser?.username || removedUser?.userId || username || userId}`
+    );
     persistState();
 
     res.json({ success: true });

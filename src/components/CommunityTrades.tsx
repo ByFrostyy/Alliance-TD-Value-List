@@ -315,7 +315,7 @@ export default function CommunityTrades({ units: propUnits, signatures: propSign
     });
   }, [pickerSearchQuery, pickerRarityFilter]);
 
-  const isUserAdmin = discordUser ? (!!discordUser.isAdmin || (discordUser.email && ["begzodfaezullaev@gmail.com", "faezullaevbegzod@gmail.com", "begodfaezullaev@gmail.com"].map(e => e.toLowerCase()).includes(discordUser.email.toLowerCase()))) : false;
+  const isUserAdmin = discordUser ? !!discordUser.isAdmin : false;
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatScrollContainerRef = useRef<HTMLDivElement>(null);

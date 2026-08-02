@@ -37,14 +37,17 @@ export default function App() {
     }
   });
   const [adminPasswordInput, setAdminPasswordInput] = useState("");
+  const [adminNicknameInput, setAdminNicknameInput] = useState(() => localStorage.getItem("origin_admin_nickname") || "");
   const [adminError, setAdminError] = useState("");
   const [showAdminForm, setShowAdminForm] = useState(false);
+  const [loggedTradeUser, setLoggedTradeUser] = useState<any | null>(null);
 
   useEffect(() => {
     const checkAdmin = async () => {
       const token = localStorage.getItem("lttd_rb_session");
       if (!token) {
         setIsAdminUser(false);
+        setLoggedTradeUser(null);
         return;
       }
       try {
@@ -59,13 +62,16 @@ export default function App() {
             setIsBanned(true);
             setBanReason(data.banReason || "Violation of rules");
             setIsAdminUser(false);
+            setLoggedTradeUser(null);
           } else if (data.valid && data.user) {
-            const isAdm = !!data.user.isAdmin || (data.user.email && ["begzodfaezullaev@gmail.com", "faezullaevbegzod@gmail.com"].map(e => e.toLowerCase()).includes(data.user.email.toLowerCase()));
+            setLoggedTradeUser(data.user);
+            const isAdm = !!data.user.isAdmin;
             setIsAdminUser(isAdm);
             setIsBanned(false);
           } else {
             setIsAdminUser(false);
             setIsBanned(false);
+            setLoggedTradeUser(null);
           }
         }
       } catch {}
@@ -268,8 +274,8 @@ export default function App() {
           if (res.ok) {
             const data = await res.json();
             if (data.valid && data.user) {
-              // Check if user is admin (strictly by email/isAdmin property)
-              const isUserAdmin = !!data.user.isAdmin || (data.user.email && ["begzodfaezullaev@gmail.com", "faezullaevbegzod@gmail.com", "begodfaezullaev@gmail.com"].map(e => e.toLowerCase()).includes(data.user.email.toLowerCase()));
+              // Check if user is admin (strictly by isAdmin property)
+              const isUserAdmin = !!data.user.isAdmin;
               if (isUserAdmin) {
                 localStorage.setItem("origin_admin_bypass", "true");
                 setIsBypassed(true);
@@ -311,8 +317,18 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const bypassParam = params.get("bypass") || params.get("admin") || params.get("dev") || params.get("admin_key");
     if (bypassParam) {
-      if (bypassParam === "aK9#mP2$vL8!qZ5@wN3&rY7*bT1^uJ4%xV6#Qm9$" || bypassParam === "kP7$mX9!vR2@bN5#qZ4*" || bypassParam === "true" || bypassParam === "1") {
+      if (bypassParam === "aK9#mP2$vL8!qZ5@wN3&rY7*bT1^uJ4%xV6#Qm9$") {
         try {
+          fetch("/api/maintenance/toggle", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password: bypassParam, active: false })
+          }).then(res => res.json()).then(data => {
+            if (data.sessionToken) {
+              localStorage.setItem("lttd_rb_session", data.sessionToken);
+            }
+          }).catch(console.error);
+
           localStorage.setItem("origin_admin_bypass", "true");
           localStorage.setItem("origin_admin_password", "aK9#mP2$vL8!qZ5@wN3&rY7*bT1^uJ4%xV6#Qm9$");
           setIsBypassed(true);
@@ -329,19 +345,35 @@ export default function App() {
   const handleAdminBypassSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAdminError("");
-    if (!adminPasswordInput) return;
+    if (!adminPasswordInput) {
+      setAdminError("Please enter the admin password!");
+      return;
+    }
+
+    const token = localStorage.getItem("lttd_rb_session");
 
     try {
       const res = await fetch("/api/maintenance/toggle", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: adminPasswordInput, active: maintenanceActive })
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": token || ""
+        },
+        body: JSON.stringify({ 
+          password: adminPasswordInput, 
+          adminNickname: adminNicknameInput,
+          userSessionToken: token || undefined,
+          active: maintenanceActive 
+        })
       });
 
       if (res.ok) {
         const data = await res.json();
         localStorage.setItem("origin_admin_bypass", "true");
         localStorage.setItem("origin_admin_password", adminPasswordInput);
+        if (adminNicknameInput) {
+          localStorage.setItem("origin_admin_nickname", adminNicknameInput);
+        }
         if (data.sessionToken) {
           localStorage.setItem("lttd_rb_session", data.sessionToken);
           setIsAdminUser(true);
@@ -351,7 +383,8 @@ export default function App() {
         setShowAdminForm(false);
         setAdminError("");
       } else {
-        setAdminError("Invalid admin password!");
+        const data = await res.json();
+        setAdminError(data.error || "Invalid admin password!");
       }
     } catch (err) {
       setAdminError("Server connection error");
@@ -448,26 +481,48 @@ export default function App() {
         {showAdminForm && (
           <div className="relative z-10 max-w-sm w-full text-center">
             <div className="border-t border-white/5 pt-5">
-              <form onSubmit={handleAdminBypassSubmit} className="space-y-3">
+              <form onSubmit={handleAdminBypassSubmit} className="space-y-3 bg-[#08080f] border border-white/10 p-5 rounded-2xl shadow-2xl">
                 <div className="text-[10px] text-slate-400 font-mono uppercase tracking-widest mb-1 flex items-center gap-1.5 justify-center">
-                  <Unlock className="w-3 h-3 text-zinc-400 animate-pulse" /> Enter Admin Password
+                  <Unlock className="w-3.5 h-3.5 text-amber-400 animate-pulse" /> Admin Authentication
                 </div>
-                <div className="flex gap-2 max-w-xs mx-auto">
+
+                {loggedTradeUser ? (
+                  <div className="text-[11px] text-indigo-300 font-mono bg-indigo-500/10 border border-indigo-500/20 p-2 rounded-xl flex items-center justify-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    Account Bound: <strong className="text-white">@{loggedTradeUser.name}</strong>
+                  </div>
+                ) : (
+                  <div className="text-[10px] text-slate-400 font-mono">
+                    💡 <span className="text-indigo-400">Tip:</span> Sign in with Discord in Trade Community or enter your nickname below.
+                  </div>
+                )}
+
+                <div className="space-y-2">
                   <input
-                    type="password"
-                    placeholder="Admin Password"
-                    value={adminPasswordInput}
-                    onChange={(e) => setAdminPasswordInput(e.target.value)}
-                    className="flex-1 bg-white/[0.02] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500/50 font-mono text-center"
-                    autoFocus
+                    type="text"
+                    placeholder={loggedTradeUser ? `@${loggedTradeUser.name} (Admin Nickname)` : "Admin Nickname / Discord Tag (Required)"}
+                    value={adminNicknameInput}
+                    onChange={(e) => setAdminNicknameInput(e.target.value)}
+                    className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 font-mono text-center"
                   />
-                  <button
-                    type="submit"
-                    className="bg-zinc-700 hover:bg-zinc-600 active:scale-95 text-white font-black px-4 rounded-xl text-xs uppercase tracking-wider transition duration-150 cursor-pointer"
-                  >
-                    Log In
-                  </button>
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      placeholder="Admin Password"
+                      value={adminPasswordInput}
+                      onChange={(e) => setAdminPasswordInput(e.target.value)}
+                      className="flex-1 bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 font-mono text-center"
+                      autoFocus
+                    />
+                    <button
+                      type="submit"
+                      className="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-black px-4 rounded-xl text-xs uppercase tracking-wider transition duration-150 cursor-pointer"
+                    >
+                      Log In
+                    </button>
+                  </div>
                 </div>
+
                 {adminError && <p className="text-xs text-rose-500 font-medium">{adminError}</p>}
                 <button
                   type="button"
@@ -801,26 +856,48 @@ export default function App() {
                     <Lock className="w-3 h-3" /> Admin Panel
                   </button>
                 ) : (
-                  <form onSubmit={handleAdminBypassSubmit} className="space-y-3 bg-[#08080f] border border-white/10 rounded-2xl p-4 w-64 shadow-2xl relative z-30">
+                  <form onSubmit={handleAdminBypassSubmit} className="space-y-3 bg-[#08080f] border border-white/10 rounded-2xl p-4 w-72 shadow-2xl relative z-30">
                     <div className="text-[9px] text-slate-400 font-mono uppercase tracking-widest mb-1 flex items-center gap-1.5 justify-center">
-                      <Unlock className="w-3 h-3 text-zinc-400 animate-pulse" /> Enter Password
+                      <Unlock className="w-3 h-3 text-amber-400 animate-pulse" /> Admin Panel Auth
                     </div>
-                    <div className="flex gap-2">
+
+                    {loggedTradeUser ? (
+                      <div className="text-[10px] text-indigo-300 font-mono bg-indigo-500/10 border border-indigo-500/20 p-1.5 rounded-lg flex items-center justify-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        Connected: <strong className="text-white">@{loggedTradeUser.name}</strong>
+                      </div>
+                    ) : (
+                      <div className="text-[9px] text-slate-400 font-mono text-center">
+                        Enter Admin Nickname or sign in with Discord
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
                       <input
-                        type="password"
-                        placeholder="Admin Password"
-                        value={adminPasswordInput}
-                        onChange={(e) => setAdminPasswordInput(e.target.value)}
-                        className="flex-1 bg-white/[0.02] border border-white/10 rounded-xl px-2 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500/50 font-mono text-center"
-                        autoFocus
+                        type="text"
+                        placeholder={loggedTradeUser ? `@${loggedTradeUser.name} (Nickname)` : "Admin Nickname / Discord Username"}
+                        value={adminNicknameInput}
+                        onChange={(e) => setAdminNicknameInput(e.target.value)}
+                        className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 font-mono text-center"
                       />
-                      <button
-                        type="submit"
-                        className="bg-zinc-700 hover:bg-zinc-600 active:scale-95 text-white font-extrabold px-3 rounded-xl text-[10px] uppercase tracking-wider transition duration-150 cursor-pointer"
-                      >
-                        Log In
-                      </button>
+                      <div className="flex gap-2">
+                        <input
+                          type="password"
+                          placeholder="Admin Password"
+                          value={adminPasswordInput}
+                          onChange={(e) => setAdminPasswordInput(e.target.value)}
+                          className="flex-1 bg-white/[0.03] border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 font-mono text-center"
+                          autoFocus
+                        />
+                        <button
+                          type="submit"
+                          className="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-extrabold px-3 rounded-xl text-[10px] uppercase tracking-wider transition duration-150 cursor-pointer"
+                        >
+                          Log In
+                        </button>
+                      </div>
                     </div>
+
                     {adminError && <p className="text-[10px] text-rose-500 font-medium text-center">{adminError}</p>}
                     <button
                       type="button"
