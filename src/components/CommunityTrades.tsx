@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   MessageSquare, Users, History, Filter, Search, Plus, X, ArrowRightLeft,
   ChevronDown, ExternalLink, Send, Clock, BadgeCheck, AlertCircle, RefreshCw,
@@ -303,7 +303,7 @@ export default function CommunityTrades({ units: propUnits, signatures: propSign
   // Selected unit config states
   const [pickerSelectedUnit, setPickerSelectedUnit] = useState<Unit | null>(null);
   const [pickerSelectedSign, setPickerSelectedSign] = useState<SignValue>(signatures.find(s => s.name === "None") || signatures[0]);
-  const [pickerSelectedQty, setPickerSelectedQty] = useState<number>(1);
+  const [pickerSelectedQty, setPickerSelectedQty] = useState<number | "">(1);
   const [isConfigureUnitOpen, setIsConfigureUnitOpen] = useState(false);
   const [isPickerSignDropdownOpen, setIsPickerSignDropdownOpen] = useState(false);
 
@@ -940,31 +940,33 @@ ${JSON.stringify(payload)}`;
   const currentChat = chats.find(c => c.id === currentChatId);
 
   // Filter Trades
-  const filteredTrades = activeTrades.filter(trade => {
-    // Search Query
-    if (searchQuery.trim() !== "") {
-      const query = searchQuery.toLowerCase();
-      const tUsername = (trade.username || trade.robloxUsername || "").toLowerCase();
-      const tDisplayName = (trade.displayName || trade.robloxDisplayName || "").toLowerCase();
-      const matchUser = tUsername.includes(query) || tDisplayName.includes(query);
-      const matchYourUnits = trade.yourOffer.some(item => item.unit?.name?.toLowerCase().includes(query));
-      const matchTheirUnits = trade.theirOffer.some(item => item.unit?.name?.toLowerCase().includes(query));
-      if (!matchUser && !matchYourUnits && !matchTheirUnits) return false;
-    }
+  const filteredTrades = useMemo(() => {
+    return activeTrades.filter(trade => {
+      // Search Query
+      if (searchQuery.trim() !== "") {
+        const query = searchQuery.toLowerCase();
+        const tUsername = (trade.username || trade.robloxUsername || "").toLowerCase();
+        const tDisplayName = (trade.displayName || trade.robloxDisplayName || "").toLowerCase();
+        const matchUser = tUsername.includes(query) || tDisplayName.includes(query);
+        const matchYourUnits = trade.yourOffer.some(item => item.unit?.name?.toLowerCase().includes(query));
+        const matchTheirUnits = trade.theirOffer.some(item => item.unit?.name?.toLowerCase().includes(query));
+        if (!matchUser && !matchYourUnits && !matchTheirUnits) return false;
+      }
 
-    // Gems Filters
-    if (filterOfferingGems && trade.yourGems === 0) return false;
-    if (filterLookingForGems && trade.theirGems === 0) return false;
+      // Gems Filters
+      if (filterOfferingGems && trade.yourGems === 0) return false;
+      if (filterLookingForGems && trade.theirGems === 0) return false;
 
-    // Rarity Filter
-    if (rarityFilter !== "All") {
-      const matchYourRarity = trade.yourOffer.some(item => item.unit?.rarity === rarityFilter);
-      const matchTheirRarity = trade.theirOffer.some(item => item.unit?.rarity === rarityFilter);
-      if (!matchYourRarity && !matchTheirRarity) return false;
-    }
+      // Rarity Filter
+      if (rarityFilter !== "All") {
+        const matchYourRarity = trade.yourOffer.some(item => item.unit?.rarity === rarityFilter);
+        const matchTheirRarity = trade.theirOffer.some(item => item.unit?.rarity === rarityFilter);
+        if (!matchYourRarity && !matchTheirRarity) return false;
+      }
 
-    return true;
-  });
+      return true;
+    });
+  }, [activeTrades, searchQuery, filterOfferingGems, filterLookingForGems, rarityFilter]);
 
   return (
     <div className="flex flex-col gap-6 max-w-[1400px] mx-auto font-sans min-h-screen p-4 pb-20 bg-[#09090b] text-zinc-300">
@@ -1226,13 +1228,13 @@ ${JSON.stringify(payload)}`;
                               <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-pulse shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
                               <span>OFFERING</span>
                             </div>
-                            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-4 gap-2 mt-3">
+                            <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 mt-3 p-1">
                               {trade.yourGems > 0 && (
-                                <div className="relative group bg-[#18181b] border border-white/10 rounded-2xl p-3 pt-4 pb-3 text-center flex flex-col items-center justify-center gap-1.5 shadow-lg select-none min-h-[112px]">
-                                  <div className="absolute -top-1 -right-1 bg-zinc-700 border border-white/10 text-white font-black text-[8px] px-2 py-0.5 rounded-lg shadow-md uppercase tracking-wider select-none z-25 font-mono">
+                                <div className="relative group bg-[#161619] border border-white/10 rounded-2xl p-2.5 pt-3.5 pb-2.5 text-center flex flex-col items-center justify-center gap-1.5 shadow-lg select-none min-h-[116px]">
+                                  <div className="absolute -top-1.5 -right-1.5 bg-zinc-700 border border-white/10 text-white font-black text-[8px] px-2 py-0.5 rounded-full shadow-md uppercase tracking-wider select-none z-20 font-mono">
                                     GEMS
                                   </div>
-                                  <img src="https://i.postimg.cc/qR8yjnQD/toilet-tower-defense-currency.webp" alt="gems" className="w-10 h-10 object-contain mt-1" />
+                                  <img src="https://i.postimg.cc/qR8yjnQD/toilet-tower-defense-currency.webp" alt="gems" className="w-9 h-9 object-contain mt-1" />
                                   <span className="font-black text-cyan-400 font-mono text-xs sm:text-sm whitespace-nowrap block truncate max-w-full">
                                     {formatNumber(trade.yourGems)}
                                   </span>
@@ -1243,35 +1245,42 @@ ${JSON.stringify(payload)}`;
                                 return (
                                   <div
                                     key={`your-calc-${idx}`}
-                                    className={`relative group bg-[#18181b] border border-white/5 rounded-2xl p-3 pt-4 pb-3 text-center flex flex-col items-center justify-between ${
-                                      hasSign ? "min-h-[140px]" : "min-h-[112px] pb-2.5"
-                                    } hover:border-zinc-700/60 hover:scale-[1.02] transition-all duration-300 shadow-md`}
+                                    className={`relative group bg-[#161619] border border-white/10 rounded-2xl p-2.5 pt-3.5 pb-2.5 text-center flex flex-col items-center justify-between ${
+                                      hasSign ? "min-h-[142px] pb-3" : "min-h-[116px]"
+                                    } hover:border-zinc-500/60 hover:scale-[1.02] transition-all duration-300 shadow-md`}
                                   >
-                                    <div className="absolute -top-2 -right-2 bg-[#2a2d36] border-2 border-[#18181b] text-white font-bold text-[9px] w-5 h-5 flex items-center justify-center rounded-full shadow-md select-none z-25">
+                                    <div className="absolute -top-1.5 -right-1.5 bg-[#22242c] border border-white/20 text-white font-mono font-bold text-[9px] px-1.5 py-0.5 rounded-full shadow-md select-none z-20">
                                       x{item.qty}
                                     </div>
-                                    <div className="flex flex-col items-center gap-1.5 w-full">
-                                      <div className="relative group/img overflow-hidden rounded-xl w-14 h-14 bg-[#050505] shadow-inner">
-                                  <img
-                                    src={item.unit?.img}
-                                    alt={item.unit?.name}
-                                    className="relative w-full h-full object-contain scale-110 group-hover/img:scale-125 transition-transform duration-300 z-10"
+                                    <div className="flex flex-col items-center gap-1 w-full min-w-0">
+                                      <div className="relative group/img overflow-hidden rounded-xl w-12 h-12 bg-[#050505] shadow-inner shrink-0 flex items-center justify-center p-0.5">
+                                        <img
+                                          src={item.unit?.img}
+                                          alt={item.unit?.name}
+                                          className="relative w-full h-full object-contain scale-110 group-hover/img:scale-125 transition-transform duration-300 z-10"
+                                          loading="lazy"
                                         />
                                       </div>
-                                      <div className="flex flex-col items-center w-full min-w-0">
-                                        <span className="text-xs font-bold text-white truncate w-full px-1 tracking-wide leading-tight mt-1">{item.unit?.name}</span>
+                                      <div className="flex flex-col items-center w-full min-w-0 mt-0.5">
+                                        <div className="h-7 flex items-center justify-center w-full min-w-0">
+                                          <span className="text-[10.5px] font-bold text-white leading-tight text-center break-words line-clamp-2 px-0.5" title={item.unit?.name}>
+                                            {item.unit?.name}
+                                          </span>
+                                        </div>
                                       </div>
                                     </div>
                                     {hasSign && (
                                       <div
-                                        className="text-[9px] font-black px-2 py-0.5 rounded-lg border w-[85%] truncate shadow-md mt-1.5"
+                                        className="text-[9.5px] font-black px-1.5 py-1 rounded-lg border w-full text-center uppercase tracking-normal leading-tight shadow-md mt-1.5 transition-all duration-300 select-none flex items-center justify-center gap-1 shrink-0"
                                         style={{
-                                          background: item.sign.color.includes("gradient") ? item.sign.color : undefined,
-                                          borderColor: item.sign.color.includes("gradient") ? "rgba(255,255,255,0.2)" : item.sign.color + "50",
-                                          color: item.sign.color.includes("gradient") ? "#fff" : item.sign.color,
+                                          background: item.sign.color.includes("gradient") ? item.sign.color : "#09090b",
+                                          borderColor: item.sign.color,
+                                          color: item.sign.color,
+                                          boxShadow: `0 0 8px ${item.sign.color}20`
                                         }}
+                                        title={`Signature: ${item.sign.name}`}
                                       >
-                                        ✍ {item.sign.name}
+                                        ✍️ {item.sign.name}
                                       </div>
                                     )}
                                   </div>
@@ -1305,13 +1314,13 @@ ${JSON.stringify(payload)}`;
                               <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-pulse shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
                               <span>LOOKING FOR</span>
                             </div>
-                            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-4 gap-2 mt-3">
+                            <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 mt-3 p-1">
                               {trade.theirGems > 0 && (
-                                <div className="relative group bg-[#18181b] border border-white/10 rounded-2xl p-3 pt-4 pb-3 text-center flex flex-col items-center justify-center gap-1.5 shadow-lg select-none min-h-[112px]">
-                                  <div className="absolute -top-1 -right-1 bg-zinc-700 border border-white/10 text-white font-black text-[8px] px-2 py-0.5 rounded-lg shadow-md uppercase tracking-wider select-none z-25 font-mono">
+                                <div className="relative group bg-[#161619] border border-white/10 rounded-2xl p-2.5 pt-3.5 pb-2.5 text-center flex flex-col items-center justify-center gap-1.5 shadow-lg select-none min-h-[116px]">
+                                  <div className="absolute -top-1.5 -right-1.5 bg-zinc-700 border border-white/10 text-white font-black text-[8px] px-2 py-0.5 rounded-full shadow-md uppercase tracking-wider select-none z-20 font-mono">
                                     GEMS
                                   </div>
-                                  <img src="https://i.postimg.cc/qR8yjnQD/toilet-tower-defense-currency.webp" alt="gems" className="w-10 h-10 object-contain mt-1" />
+                                  <img src="https://i.postimg.cc/qR8yjnQD/toilet-tower-defense-currency.webp" alt="gems" className="w-9 h-9 object-contain mt-1" />
                                   <span className="font-black text-cyan-400 font-mono text-xs sm:text-sm whitespace-nowrap block truncate max-w-full">
                                     {formatNumber(trade.theirGems)}
                                   </span>
@@ -1322,35 +1331,42 @@ ${JSON.stringify(payload)}`;
                                 return (
                                   <div
                                     key={`their-calc-${idx}`}
-                                    className={`relative group bg-[#18181b] border border-white/5 rounded-2xl p-3 pt-4 pb-3 text-center flex flex-col items-center justify-between ${
-                                      hasSign ? "min-h-[140px]" : "min-h-[112px] pb-2.5"
-                                    } hover:border-zinc-700/60 hover:scale-[1.02] transition-all duration-300 shadow-md`}
+                                    className={`relative group bg-[#161619] border border-white/10 rounded-2xl p-2.5 pt-3.5 pb-2.5 text-center flex flex-col items-center justify-between ${
+                                      hasSign ? "min-h-[142px] pb-3" : "min-h-[116px]"
+                                    } hover:border-zinc-500/60 hover:scale-[1.02] transition-all duration-300 shadow-md`}
                                   >
-                                    <div className="absolute -top-2 -right-2 bg-[#2a2d36] border-2 border-[#18181b] text-white font-bold text-[9px] w-5 h-5 flex items-center justify-center rounded-full shadow-md select-none z-25">
+                                    <div className="absolute -top-1.5 -right-1.5 bg-[#22242c] border border-white/20 text-white font-mono font-bold text-[9px] px-1.5 py-0.5 rounded-full shadow-md select-none z-20">
                                       x{item.qty}
                                     </div>
-                                    <div className="flex flex-col items-center gap-1.5 w-full">
-                                      <div className="relative group/img overflow-hidden rounded-xl w-14 h-14 bg-[#050505] shadow-inner">
-                                  <img
-                                    src={item.unit?.img}
-                                    alt={item.unit?.name}
-                                    className="relative w-full h-full object-contain scale-110 group-hover/img:scale-125 transition-transform duration-300 z-10"
+                                    <div className="flex flex-col items-center gap-1 w-full min-w-0">
+                                      <div className="relative group/img overflow-hidden rounded-xl w-12 h-12 bg-[#050505] shadow-inner shrink-0 flex items-center justify-center p-0.5">
+                                        <img
+                                          src={item.unit?.img}
+                                          alt={item.unit?.name}
+                                          className="relative w-full h-full object-contain scale-110 group-hover/img:scale-125 transition-transform duration-300 z-10"
+                                          loading="lazy"
                                         />
                                       </div>
-                                      <div className="flex flex-col items-center w-full min-w-0">
-                                        <span className="text-xs font-bold text-white truncate w-full px-1 tracking-wide leading-tight mt-1">{item.unit?.name}</span>
+                                      <div className="flex flex-col items-center w-full min-w-0 mt-0.5">
+                                        <div className="h-7 flex items-center justify-center w-full min-w-0">
+                                          <span className="text-[10.5px] font-bold text-white leading-tight text-center break-words line-clamp-2 px-0.5" title={item.unit?.name}>
+                                            {item.unit?.name}
+                                          </span>
+                                        </div>
                                       </div>
                                     </div>
                                     {hasSign && (
                                       <div
-                                        className="text-[9px] font-black px-2 py-0.5 rounded-lg border w-[85%] truncate shadow-md mt-1.5"
+                                        className="text-[9.5px] font-black px-1.5 py-1 rounded-lg border w-full text-center uppercase tracking-normal leading-tight shadow-md mt-1.5 transition-all duration-300 select-none flex items-center justify-center gap-1 shrink-0"
                                         style={{
-                                          background: item.sign.color.includes("gradient") ? item.sign.color : undefined,
-                                          borderColor: item.sign.color.includes("gradient") ? "rgba(255,255,255,0.2)" : item.sign.color + "50",
-                                          color: item.sign.color.includes("gradient") ? "#fff" : item.sign.color,
+                                          background: item.sign.color.includes("gradient") ? item.sign.color : "#09090b",
+                                          borderColor: item.sign.color,
+                                          color: item.sign.color,
+                                          boxShadow: `0 0 8px ${item.sign.color}20`
                                         }}
+                                        title={`Signature: ${item.sign.name}`}
                                       >
-                                        ✍ {item.sign.name}
+                                        ✍️ {item.sign.name}
                                       </div>
                                     )}
                                   </div>
@@ -2070,20 +2086,21 @@ ${JSON.stringify(payload)}`;
                     
                     {/* Grid of added items and gems */}
                     <div>
-                    <div className="grid grid-cols-2 gap-3 min-h-[220px] max-h-[300px] content-start overflow-y-auto p-2 pr-3.5 mb-6 scrollbar-thin">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 min-h-[200px] max-h-[300px] content-start overflow-y-auto p-2 mb-6 scrollbar-thin">
                       {yourOfferGems > 0 && (
-                        <div className="relative group bg-[#050505]/80 border border-cyan-500/30 rounded-2xl p-2.5 pt-3.5 pb-2.5 text-center flex flex-col items-center justify-center gap-1 shadow-lg select-none min-h-[140px]">
+                        <div className="relative group bg-[#050505]/80 border border-cyan-500/30 rounded-2xl p-2.5 pt-3.5 pb-2.5 text-center flex flex-col items-center justify-center gap-1 shadow-lg select-none min-h-[120px]">
                           <button
                             type="button"
                             onClick={() => setYourOfferGems(0)}
-                            className="absolute -top-1 -left-1 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-md z-25 select-none cursor-pointer hover:scale-110 active:scale-95 transition-all duration-200 border border-white/20 shadow-[0_2px_8px_rgba(244,63,94,0.3)]"
+                            className="absolute -top-1.5 -left-1.5 bg-zinc-800 hover:bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-md z-20 select-none cursor-pointer border border-white/20 transition-all active:scale-95"
+                            title="Remove gems"
                           >
                             <X className="w-2.5 h-2.5" strokeWidth={3.5} />
                           </button>
-                          <div className="absolute -top-1 -right-1 bg-cyan-500 border border-white/20 text-black font-black text-[7px] px-1.5 py-0.5 rounded-lg shadow-md uppercase tracking-wider select-none z-25 font-mono shadow-[0_2px_8px_rgba(6,182,212,0.3)]">
+                          <div className="absolute -top-1.5 -right-1.5 bg-cyan-500 border border-white/20 text-black font-black text-[7px] px-1.5 py-0.5 rounded-full shadow-md uppercase tracking-wider select-none z-20 font-mono">
                             GEMS
                           </div>
-                          <img src="https://i.postimg.cc/qR8yjnQD/toilet-tower-defense-currency.webp" alt="gems" className="w-10 h-10 object-contain mt-1 filter drop-shadow-[0_0_6px_rgba(6,182,212,0.3)]" />
+                          <img src="https://i.postimg.cc/qR8yjnQD/toilet-tower-defense-currency.webp" alt="gems" className="w-9 h-9 object-contain mt-1 filter drop-shadow-[0_0_6px_rgba(6,182,212,0.3)]" />
                           <span className="font-black text-cyan-400 font-mono text-[11px] sm:text-xs whitespace-nowrap block truncate max-w-full">
                             {yourOfferGems.toLocaleString("en-US")}
                           </span>
@@ -2092,44 +2109,51 @@ ${JSON.stringify(payload)}`;
 
                       {yourOfferItems.map((item, idx) => {
                         const hasSign = item.sign?.name && item.sign.name !== "None";
-                        const isDecorated = hasSign;
                         const rStyle = rarityClasses[item.unit?.rarity] || rarityClasses.Basic;
 
                         return (
                           <div
                             key={`your-modal-${idx}`}
-                            className={`relative group ${rStyle.bg} border ${rStyle.border} ${rStyle.shadow} rounded-2xl p-2.5 pt-4 pb-2.5 text-center flex flex-col items-center justify-between ${
-                              isDecorated ? "min-h-[140px]" : "min-h-[112px] pb-2"
-                            } hover:border-white/30 hover:scale-[1.02] transition-all duration-300 shadow-md`}
+                            className={`relative group ${rStyle.bg} border ${rStyle.border} ${rStyle.shadow} rounded-2xl p-2.5 pt-3.5 pb-2.5 text-center flex flex-col items-center justify-between ${
+                              hasSign ? "min-h-[142px] pb-3" : "min-h-[116px]"
+                            } hover:border-white/40 hover:scale-[1.02] transition-all duration-300 shadow-md`}
                           >
                             <button
                               type="button"
                               onClick={() => setYourOfferItems(yourOfferItems.filter((_, i) => i !== idx))}
-                              className="absolute -top-1 -left-1 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-md z-25 select-none cursor-pointer hover:scale-110 active:scale-95 transition-all duration-200 border border-white/20 shadow-[0_2px_8px_rgba(244,63,94,0.3)]"
+                              className="absolute -top-1.5 -left-1.5 bg-zinc-800 hover:bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-md z-20 select-none cursor-pointer hover:scale-110 active:scale-95 transition-all duration-200 border border-white/20"
+                              title="Remove item"
                             >
                               <X className="w-2.5 h-2.5" strokeWidth={3.5} />
                             </button>
-                            <div className="absolute -top-1 -right-1 bg-rose-500 border border-white/20 text-white font-black text-[8px] px-1.5 py-0.5 rounded-lg shadow-md select-none z-25 font-mono shadow-[0_2px_8px_rgba(244,63,94,0.3)]">
+                            <div className="absolute -top-1.5 -right-1.5 bg-rose-500 border border-white/20 text-white font-mono font-bold text-[9px] px-1.5 py-0.5 rounded-full shadow-md select-none z-20">
                               x{item.qty}
                             </div>
 
-                            <div className="flex flex-col items-center gap-1 w-full">
-                              <div className="w-10 h-10 shrink-0 overflow-hidden rounded-lg shadow-md "><img src={item.unit?.img} alt={item.unit?.name} className="w-full h-full object-contain scale-110" /></div>
-                              <span className="text-[10px] font-bold text-white truncate w-full px-1 tracking-wide mt-1">{item.unit?.name}</span>
+                            <div className="flex flex-col items-center gap-1 w-full min-w-0">
+                              <div className="w-11 h-11 shrink-0 overflow-hidden rounded-xl bg-black/40 shadow-inner flex items-center justify-center p-0.5">
+                                <img src={item.unit?.img} alt={item.unit?.name} className="w-full h-full object-contain scale-110" loading="lazy" />
+                              </div>
+                              <div className="h-7 flex items-center justify-center w-full min-w-0">
+                                <span className="text-[10.5px] font-bold text-white leading-tight text-center break-words line-clamp-2 px-0.5" title={item.unit?.name}>
+                                  {item.unit?.name}
+                                </span>
+                              </div>
                             </div>
 
                             <div className="w-full flex flex-col gap-1 mt-1 shrink-0">
                               {hasSign && (
                                 <div
-                                  className="text-[8px] font-black px-1.5 py-0.5 rounded-full border overflow-hidden truncate w-full text-center tracking-wide flex items-center justify-center gap-0.5 shadow-sm uppercase shrink-0"
+                                  className="text-[9.5px] font-black px-1.5 py-1 rounded-lg border w-full text-center uppercase tracking-normal leading-tight shadow-md mt-1.5 transition-all duration-300 select-none flex items-center justify-center gap-1 shrink-0"
                                   style={{
-                                    background: item.sign.color.includes("gradient") ? item.sign.color : undefined,
-                                    backgroundColor: item.sign.color.includes("gradient") ? undefined : item.sign.color + "15",
-                                    borderColor: item.sign.color.includes("gradient") ? "rgba(255,255,255,0.2)" : item.sign.color + "30",
-                                    color: item.sign.color.includes("gradient") ? "#fff" : item.sign.color,
+                                    background: item.sign.color.includes("gradient") ? item.sign.color : "#09090b",
+                                    borderColor: item.sign.color,
+                                    color: item.sign.color,
+                                    boxShadow: `0 0 8px ${item.sign.color}20`
                                   }}
+                                  title={`Signature: ${item.sign.name}`}
                                 >
-                                  ✍ {item.sign.name}
+                                  ✍️ {item.sign.name}
                                 </div>
                               )}
                             </div>
@@ -2207,20 +2231,21 @@ ${JSON.stringify(payload)}`;
                     
                     {/* Grid of added items and gems */}
                     <div>
-                    <div className="grid grid-cols-2 gap-3 min-h-[220px] max-h-[300px] content-start overflow-y-auto p-2 pr-3.5 mb-6 scrollbar-thin">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 min-h-[200px] max-h-[300px] content-start overflow-y-auto p-2 mb-6 scrollbar-thin">
                       {theirOfferGems > 0 && (
-                        <div className="relative group bg-[#050505]/80 border border-cyan-500/30 rounded-2xl p-2.5 pt-3.5 pb-2.5 text-center flex flex-col items-center justify-center gap-1 shadow-lg select-none min-h-[140px]">
+                        <div className="relative group bg-[#050505]/80 border border-cyan-500/30 rounded-2xl p-2.5 pt-3.5 pb-2.5 text-center flex flex-col items-center justify-center gap-1 shadow-lg select-none min-h-[120px]">
                           <button
                             type="button"
                             onClick={() => setTheirOfferGems(0)}
-                            className="absolute -top-1 -left-1 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-md z-25 select-none cursor-pointer hover:scale-110 active:scale-95 transition-all duration-200 border border-white/20 shadow-[0_2px_8px_rgba(244,63,94,0.3)]"
+                            className="absolute -top-1.5 -left-1.5 bg-zinc-800 hover:bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-md z-20 select-none cursor-pointer border border-white/20 transition-all active:scale-95"
+                            title="Remove gems"
                           >
                             <X className="w-2.5 h-2.5" strokeWidth={3.5} />
                           </button>
-                          <div className="absolute -top-1 -right-1 bg-cyan-500 border border-white/20 text-black font-black text-[7px] px-1.5 py-0.5 rounded-lg shadow-md uppercase tracking-wider select-none z-25 font-mono shadow-[0_2px_8px_rgba(6,182,212,0.3)]">
+                          <div className="absolute -top-1.5 -right-1.5 bg-cyan-500 border border-white/20 text-black font-black text-[7px] px-1.5 py-0.5 rounded-full shadow-md uppercase tracking-wider select-none z-20 font-mono">
                             GEMS
                           </div>
-                          <img src="https://i.postimg.cc/qR8yjnQD/toilet-tower-defense-currency.webp" alt="gems" className="w-10 h-10 object-contain mt-1 filter drop-shadow-[0_0_6px_rgba(6,182,212,0.3)]" />
+                          <img src="https://i.postimg.cc/qR8yjnQD/toilet-tower-defense-currency.webp" alt="gems" className="w-9 h-9 object-contain mt-1 filter drop-shadow-[0_0_6px_rgba(6,182,212,0.3)]" />
                           <span className="font-black text-cyan-400 font-mono text-[11px] sm:text-xs whitespace-nowrap block truncate max-w-full">
                             {theirOfferGems.toLocaleString("en-US")}
                           </span>
@@ -2229,44 +2254,51 @@ ${JSON.stringify(payload)}`;
 
                       {theirOfferItems.map((item, idx) => {
                         const hasSign = item.sign?.name && item.sign.name !== "None";
-                        const isDecorated = hasSign;
                         const rStyle = rarityClasses[item.unit?.rarity] || rarityClasses.Basic;
 
                         return (
                           <div
                             key={`their-modal-${idx}`}
-                            className={`relative group ${rStyle.bg} border ${rStyle.border} ${rStyle.shadow} rounded-2xl p-2.5 pt-4 pb-2.5 text-center flex flex-col items-center justify-between ${
-                              isDecorated ? "min-h-[140px]" : "min-h-[112px] pb-2"
-                            } hover:border-white/30 hover:scale-[1.02] transition-all duration-300 shadow-md`}
+                            className={`relative group ${rStyle.bg} border ${rStyle.border} ${rStyle.shadow} rounded-2xl p-2.5 pt-3.5 pb-2.5 text-center flex flex-col items-center justify-between ${
+                              hasSign ? "min-h-[142px] pb-3" : "min-h-[116px]"
+                            } hover:border-white/40 hover:scale-[1.02] transition-all duration-300 shadow-md`}
                           >
                             <button
                               type="button"
                               onClick={() => setTheirOfferItems(theirOfferItems.filter((_, i) => i !== idx))}
-                              className="absolute -top-1 -left-1 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-md z-25 select-none cursor-pointer hover:scale-110 active:scale-95 transition-all duration-200 border border-white/20 shadow-[0_2px_8px_rgba(244,63,94,0.3)]"
+                              className="absolute -top-1.5 -left-1.5 bg-zinc-800 hover:bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-md z-20 select-none cursor-pointer hover:scale-110 active:scale-95 transition-all duration-200 border border-white/20"
+                              title="Remove item"
                             >
                               <X className="w-2.5 h-2.5" strokeWidth={3.5} />
                             </button>
-                            <div className="absolute -top-1 -right-1 bg-rose-500 border border-white/20 text-white font-black text-[8px] px-1.5 py-0.5 rounded-lg shadow-md select-none z-25 font-mono shadow-[0_2px_8px_rgba(244,63,94,0.3)]">
+                            <div className="absolute -top-1.5 -right-1.5 bg-rose-500 border border-white/20 text-white font-mono font-bold text-[9px] px-1.5 py-0.5 rounded-full shadow-md select-none z-20">
                               x{item.qty}
                             </div>
 
-                            <div className="flex flex-col items-center gap-1 w-full">
-                              <div className="w-10 h-10 shrink-0 overflow-hidden rounded-lg shadow-md "><img src={item.unit?.img} alt={item.unit?.name} className="w-full h-full object-contain scale-110" /></div>
-                              <span className="text-[10px] font-bold text-white truncate w-full px-1 tracking-wide mt-1">{item.unit?.name}</span>
+                            <div className="flex flex-col items-center gap-1 w-full min-w-0">
+                              <div className="w-11 h-11 shrink-0 overflow-hidden rounded-xl bg-black/40 shadow-inner flex items-center justify-center p-0.5">
+                                <img src={item.unit?.img} alt={item.unit?.name} className="w-full h-full object-contain scale-110" loading="lazy" />
+                              </div>
+                              <div className="h-7 flex items-center justify-center w-full min-w-0">
+                                <span className="text-[10.5px] font-bold text-white leading-tight text-center break-words line-clamp-2 px-0.5" title={item.unit?.name}>
+                                  {item.unit?.name}
+                                </span>
+                              </div>
                             </div>
 
                             <div className="w-full flex flex-col gap-1 mt-1 shrink-0">
                               {hasSign && (
                                 <div
-                                  className="text-[8px] font-black px-1.5 py-0.5 rounded-full border overflow-hidden truncate w-full text-center tracking-wide flex items-center justify-center gap-0.5 shadow-sm uppercase shrink-0"
+                                  className="text-[9.5px] font-black px-1.5 py-1 rounded-lg border w-full text-center uppercase tracking-normal leading-tight shadow-md mt-1.5 transition-all duration-300 select-none flex items-center justify-center gap-1 shrink-0"
                                   style={{
-                                    background: item.sign.color.includes("gradient") ? item.sign.color : undefined,
-                                    backgroundColor: item.sign.color.includes("gradient") ? undefined : item.sign.color + "15",
-                                    borderColor: item.sign.color.includes("gradient") ? "rgba(255,255,255,0.2)" : item.sign.color + "30",
-                                    color: item.sign.color.includes("gradient") ? "#fff" : item.sign.color,
+                                    background: item.sign.color.includes("gradient") ? item.sign.color : "#09090b",
+                                    borderColor: item.sign.color,
+                                    color: item.sign.color,
+                                    boxShadow: `0 0 8px ${item.sign.color}20`
                                   }}
+                                  title={`Signature: ${item.sign.name}`}
                                 >
-                                  ✍ {item.sign.name}
+                                  ✍️ {item.sign.name}
                                 </div>
                               )}
                             </div>
@@ -2415,7 +2447,9 @@ ${JSON.stringify(payload)}`;
                           return (
                             <div
                               key={`dm-your-modal-${idx}`}
-                              className={`relative group ${rStyle.bg} border ${rStyle.border} rounded-2xl p-2.5 text-center flex flex-col items-center justify-between min-h-[100px] hover:border-white/20 hover:scale-[1.02] transition-all duration-300 shadow-md`}
+                              className={`relative group ${rStyle.bg} border ${rStyle.border} ${rStyle.shadow} rounded-2xl p-2.5 pt-3.5 pb-2.5 text-center flex flex-col items-center justify-between ${
+                                hasSign ? "min-h-[142px] pb-3" : "min-h-[116px]"
+                              } hover:border-white/30 transition-all duration-300 shadow-md`}
                             >
                               <button
                                 type="button"
@@ -2426,25 +2460,35 @@ ${JSON.stringify(payload)}`;
                                     setDmYourOfferItems(dmYourOfferItems.filter((_, i) => i !== idx));
                                   }
                                 }}
-                                className="absolute -top-1 -left-1 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full w-4.5 h-4.5 flex items-center justify-center text-[8px] shadow-md opacity-90 hover:opacity-100 z-25 cursor-pointer border border-white/10"
+                                className="absolute -top-1.5 -left-1.5 bg-zinc-800 hover:bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[9px] shadow-md z-20 cursor-pointer border border-white/20 transition-all active:scale-90"
                                 title={item.qty > 1 ? "Decrement quantity" : "Remove unit"}
                               >
                                 <X className="w-2.5 h-2.5" strokeWidth={3.5} />
                               </button>
-                              <span className="absolute -top-2 -right-2 bg-[#2a2d36] border-2 border-[#18181b] text-white font-bold text-[9px] w-5 h-5 flex items-center justify-center rounded-full shadow-md select-none z-25">x{item.qty}</span>
-                              <div className="w-8 h-8 mt-1.5 shrink-0 overflow-hidden rounded-lg bg-black/25"><img src={item.unit?.img} className="w-full h-full object-contain scale-110" alt="" /></div>
-                              <div className="min-w-0 w-full mt-1.5">
-                                <div className="text-[9px] font-black text-white truncate leading-tight">{item.unit?.name}</div>
+                              <span className="absolute -top-1.5 -right-1.5 bg-[#252730] border border-white/20 text-white font-mono font-bold text-[9px] px-1.5 py-0.5 rounded-full shadow-md select-none z-20">
+                                x{item.qty}
+                              </span>
+                              <div className="w-11 h-11 shrink-0 overflow-hidden rounded-xl bg-black/40 flex items-center justify-center p-0.5 shadow-inner">
+                                <img src={item.unit?.img} className="w-full h-full object-contain scale-110" alt={item.unit?.name || ""} loading="lazy" />
+                              </div>
+                              <div className="min-w-0 w-full mt-1 flex flex-col items-center">
+                                <div className="h-7 flex items-center justify-center w-full min-w-0">
+                                  <div className="text-[10.5px] font-extrabold text-white leading-tight text-center break-words line-clamp-2 px-0.5" title={item.unit?.name}>
+                                    {item.unit?.name}
+                                  </div>
+                                </div>
                                 {hasSign && (
                                   <div
-                                    className="text-[7px] font-black px-1.5 py-0.5 rounded-lg border truncate mt-1 w-full text-center"
+                                    className="text-[9.5px] font-black px-1.5 py-1 rounded-lg border w-full text-center uppercase tracking-normal leading-tight shadow-md mt-1.5 transition-all duration-300 select-none flex items-center justify-center gap-1 shrink-0"
                                     style={{
-                                      background: item.sign.color.includes("gradient") ? item.sign.color : undefined,
-                                      borderColor: item.sign.color.includes("gradient") ? "rgba(255,255,255,0.2)" : item.sign.color + "30",
-                                      color: item.sign.color.includes("gradient") ? "#fff" : item.sign.color,
+                                      background: item.sign.color.includes("gradient") ? item.sign.color : "#09090b",
+                                      borderColor: item.sign.color,
+                                      color: item.sign.color,
+                                      boxShadow: `0 0 8px ${item.sign.color}20`
                                     }}
+                                    title={`Signature: ${item.sign.name}`}
                                   >
-                                    ✍ {item.sign.name}
+                                    ✍️ {item.sign.name}
                                   </div>
                                 )}
                               </div>
@@ -2521,13 +2565,14 @@ ${JSON.stringify(payload)}`;
                       </div>
                       
                       {/* Grid of added items and gems */}
-                      <div className="grid grid-cols-2 gap-2.5 overflow-y-auto max-h-[220px] content-start scrollbar-thin mb-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 overflow-y-auto max-h-[240px] content-start scrollbar-thin mb-3 p-1">
                         {dmTheirOfferGems > 0 && (
-                          <div className="relative group bg-[#050505]/80 border border-cyan-500/30 rounded-2xl p-2.5 text-center flex flex-col items-center justify-center gap-1 shadow-lg select-none min-h-[100px]">
+                          <div className="relative group bg-[#050505]/80 border border-cyan-500/30 rounded-2xl p-2.5 text-center flex flex-col items-center justify-center gap-1 shadow-lg select-none min-h-[120px]">
                             <button
                               type="button"
                               onClick={() => setDmTheirOfferGems(0)}
-                              className="absolute -top-1 -left-1 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full w-4.5 h-4.5 flex items-center justify-center text-[8px] shadow-md z-25 cursor-pointer hover:scale-110 active:scale-95 transition-all border border-white/20"
+                              className="absolute -top-1.5 -left-1.5 bg-zinc-800 hover:bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[9px] shadow-md z-20 cursor-pointer border border-white/20 transition-all active:scale-90"
+                              title="Remove gems"
                             >
                               <X className="w-2.5 h-2.5" strokeWidth={3.5} />
                             </button>
@@ -2545,7 +2590,9 @@ ${JSON.stringify(payload)}`;
                           return (
                             <div
                               key={`dm-their-modal-${idx}`}
-                              className={`relative group ${rStyle.bg} border ${rStyle.border} rounded-2xl p-2.5 text-center flex flex-col items-center justify-between min-h-[100px] hover:border-white/20 hover:scale-[1.02] transition-all duration-300 shadow-md`}
+                              className={`relative group ${rStyle.bg} border ${rStyle.border} ${rStyle.shadow} rounded-2xl p-2.5 pt-3.5 pb-2.5 text-center flex flex-col items-center justify-between ${
+                                hasSign ? "min-h-[142px] pb-3" : "min-h-[116px]"
+                              } hover:border-white/30 transition-all duration-300 shadow-md`}
                             >
                               <button
                                 type="button"
@@ -2556,25 +2603,35 @@ ${JSON.stringify(payload)}`;
                                     setDmTheirOfferItems(dmTheirOfferItems.filter((_, i) => i !== idx));
                                   }
                                 }}
-                                className="absolute -top-1 -left-1 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full w-4.5 h-4.5 flex items-center justify-center text-[8px] shadow-md opacity-90 hover:opacity-100 z-25 cursor-pointer border border-white/10"
+                                className="absolute -top-1.5 -left-1.5 bg-zinc-800 hover:bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[9px] shadow-md z-20 cursor-pointer border border-white/20 transition-all active:scale-90"
                                 title={item.qty > 1 ? "Decrement quantity" : "Remove unit"}
                               >
                                 <X className="w-2.5 h-2.5" strokeWidth={3.5} />
                               </button>
-                              <span className="absolute -top-2 -right-2 bg-[#2a2d36] border-2 border-[#18181b] text-white font-bold text-[9px] w-5 h-5 flex items-center justify-center rounded-full shadow-md select-none z-25">x{item.qty}</span>
-                              <div className="w-8 h-8 mt-1.5 shrink-0 overflow-hidden rounded-lg bg-black/25"><img src={item.unit?.img} className="w-full h-full object-contain scale-110" alt="" /></div>
-                              <div className="min-w-0 w-full mt-1.5">
-                                <div className="text-[9px] font-black text-white truncate leading-tight">{item.unit?.name}</div>
+                              <span className="absolute -top-1.5 -right-1.5 bg-[#252730] border border-white/20 text-white font-mono font-bold text-[9px] px-1.5 py-0.5 rounded-full shadow-md select-none z-20">
+                                x{item.qty}
+                              </span>
+                              <div className="w-11 h-11 shrink-0 overflow-hidden rounded-xl bg-black/40 flex items-center justify-center p-0.5 shadow-inner">
+                                <img src={item.unit?.img} className="w-full h-full object-contain scale-110" alt={item.unit?.name || ""} loading="lazy" />
+                              </div>
+                              <div className="min-w-0 w-full mt-1 flex flex-col items-center">
+                                <div className="h-7 flex items-center justify-center w-full min-w-0">
+                                  <div className="text-[10.5px] font-extrabold text-white leading-tight text-center break-words line-clamp-2 px-0.5" title={item.unit?.name}>
+                                    {item.unit?.name}
+                                  </div>
+                                </div>
                                 {hasSign && (
                                   <div
-                                    className="text-[7px] font-black px-1.5 py-0.5 rounded-lg border truncate mt-1 w-full text-center"
+                                    className="text-[9.5px] font-black px-1.5 py-1 rounded-lg border w-full text-center uppercase tracking-normal leading-tight shadow-md mt-1.5 transition-all duration-300 select-none flex items-center justify-center gap-1 shrink-0"
                                     style={{
-                                      background: item.sign.color.includes("gradient") ? item.sign.color : undefined,
-                                      borderColor: item.sign.color.includes("gradient") ? "rgba(255,255,255,0.2)" : item.sign.color + "30",
-                                      color: item.sign.color.includes("gradient") ? "#fff" : item.sign.color,
+                                      background: item.sign.color.includes("gradient") ? item.sign.color : "#09090b",
+                                      borderColor: item.sign.color,
+                                      color: item.sign.color,
+                                      boxShadow: `0 0 8px ${item.sign.color}20`
                                     }}
+                                    title={`Signature: ${item.sign.name}`}
                                   >
-                                    ✍ {item.sign.name}
+                                    ✍️ {item.sign.name}
                                   </div>
                                 )}
                               </div>
@@ -2706,13 +2763,14 @@ ${JSON.stringify(payload)}`;
                       </div>
                       
                       {/* Grid of added items and gems */}
-                      <div className="grid grid-cols-2 gap-2.5 overflow-y-auto max-h-[220px] content-start scrollbar-thin mb-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 overflow-y-auto max-h-[240px] content-start scrollbar-thin mb-3 p-1">
                         {coYourOfferGems > 0 && (
-                          <div className="relative group bg-[#050505]/80 border border-cyan-500/30 rounded-2xl p-2.5 text-center flex flex-col items-center justify-center gap-1 shadow-lg select-none min-h-[100px]">
+                          <div className="relative group bg-[#050505]/80 border border-cyan-500/30 rounded-2xl p-2.5 text-center flex flex-col items-center justify-center gap-1 shadow-lg select-none min-h-[120px]">
                             <button
                               type="button"
                               onClick={() => setCoYourOfferGems(0)}
-                              className="absolute -top-1 -left-1 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full w-4.5 h-4.5 flex items-center justify-center text-[8px] shadow-md z-25 cursor-pointer hover:scale-110 active:scale-95 transition-all border border-white/20"
+                              className="absolute -top-1.5 -left-1.5 bg-zinc-800 hover:bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[9px] shadow-md z-20 cursor-pointer border border-white/20 transition-all active:scale-90"
+                              title="Remove gems"
                             >
                               <X className="w-2.5 h-2.5" strokeWidth={3.5} />
                             </button>
@@ -2729,9 +2787,9 @@ ${JSON.stringify(payload)}`;
                           return (
                             <div
                               key={`co-your-modal-${idx}`}
-                              className={`relative group bg-[#18181b] border border-white/5 rounded-2xl p-3 pt-4 pb-3 text-center flex flex-col items-center justify-between ${
-                                hasSign ? "min-h-[140px]" : "min-h-[112px] pb-2.5"
-                              } hover:border-zinc-700/60 hover:scale-[1.02] transition-all duration-300 shadow-md`}
+                              className={`relative group bg-[#161619] border border-white/10 rounded-2xl p-2.5 pt-3.5 pb-2.5 text-center flex flex-col items-center justify-between ${
+                                hasSign ? "min-h-[142px] pb-3" : "min-h-[116px]"
+                              } hover:border-white/30 transition-all duration-300 shadow-md`}
                             >
                               <button
                                 type="button"
@@ -2742,16 +2800,16 @@ ${JSON.stringify(payload)}`;
                                     setCoYourOfferItems(coYourOfferItems.filter((_, i) => i !== idx));
                                   }
                                 }}
-                                className="absolute -top-1 -left-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-full w-5.5 h-5.5 flex items-center justify-center text-[10px] shadow-md z-25 select-none cursor-pointer hover:scale-110 active:scale-95 transition-all duration-200 border border-white/10"
+                                className="absolute -top-1.5 -left-1.5 bg-zinc-800 hover:bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[9px] shadow-md z-20 cursor-pointer border border-white/20 transition-all active:scale-90"
                                 title={item.qty > 1 ? "Decrement quantity" : "Remove unit"}
                               >
                                 <X className="w-2.5 h-2.5" strokeWidth={3.5} />
                               </button>
-                              <div className="absolute -top-2 -right-2 bg-[#2a2d36] border-2 border-[#18181b] text-white font-bold text-[9px] w-5 h-5 flex items-center justify-center rounded-full shadow-md select-none z-25">
+                              <div className="absolute -top-1.5 -right-1.5 bg-[#252730] border border-white/20 text-white font-mono font-bold text-[9px] px-1.5 py-0.5 rounded-full shadow-md select-none z-20">
                                 x{item.qty}
                               </div>
-                              <div className="flex flex-col items-center gap-1.5 w-full">
-                                <div className="relative group/img overflow-hidden rounded-xl w-14 h-14 bg-[#050505] shadow-inner">
+                              <div className="flex flex-col items-center gap-1 w-full min-w-0">
+                                <div className="relative group/img overflow-hidden rounded-xl w-11 h-11 bg-black/40 flex items-center justify-center p-0.5 shadow-inner shrink-0">
                                   <img
                                     src={item.unit?.img}
                                     alt={item.unit?.name}
@@ -2759,19 +2817,25 @@ ${JSON.stringify(payload)}`;
                                   />
                                 </div>
                                 <div className="flex flex-col items-center w-full min-w-0">
-                                  <span className="text-xs font-bold text-white truncate w-full px-1 tracking-wide leading-tight mt-1">{item.unit?.name}</span>
+                                  <div className="h-7 flex items-center justify-center w-full min-w-0 mt-1">
+                                    <span className="text-[10.5px] font-bold text-white leading-tight text-center break-words line-clamp-2 px-0.5" title={item.unit?.name}>
+                                      {item.unit?.name}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
                               {hasSign && (
                                 <div
-                                  className="text-[9px] font-black px-2 py-0.5 rounded-lg border w-[85%] truncate shadow-md mt-1.5"
+                                  className="text-[9.5px] font-black px-1.5 py-1 rounded-lg border w-full text-center uppercase tracking-normal leading-tight shadow-md mt-1.5 transition-all duration-300 select-none flex items-center justify-center gap-1 shrink-0"
                                   style={{
-                                    background: item.sign.color.includes("gradient") ? item.sign.color : undefined,
-                                    borderColor: item.sign.color.includes("gradient") ? "rgba(255,255,255,0.2)" : item.sign.color + "50",
-                                    color: item.sign.color.includes("gradient") ? "#fff" : item.sign.color,
+                                    background: item.sign.color.includes("gradient") ? item.sign.color : "#09090b",
+                                    borderColor: item.sign.color,
+                                    color: item.sign.color,
+                                    boxShadow: `0 0 8px ${item.sign.color}20`
                                   }}
+                                  title={`Signature: ${item.sign.name}`}
                                 >
-                                  ✍ {item.sign.name}
+                                  ✍️ {item.sign.name}
                                 </div>
                               )}
                             </div>
@@ -2847,13 +2911,14 @@ ${JSON.stringify(payload)}`;
                       </div>
 
                       {/* Grid of added items and gems */}
-                      <div className="grid grid-cols-2 gap-2.5 overflow-y-auto max-h-[220px] content-start scrollbar-thin mb-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 overflow-y-auto max-h-[240px] content-start scrollbar-thin mb-3 p-1">
                         {coTheirOfferGems > 0 && (
-                          <div className="relative group bg-[#050505]/80 border border-cyan-500/30 rounded-2xl p-2.5 text-center flex flex-col items-center justify-center gap-1 shadow-lg select-none min-h-[100px]">
+                          <div className="relative group bg-[#050505]/80 border border-cyan-500/30 rounded-2xl p-2.5 text-center flex flex-col items-center justify-center gap-1 shadow-lg select-none min-h-[120px]">
                             <button
                               type="button"
                               onClick={() => setCoTheirOfferGems(0)}
-                              className="absolute -top-1 -left-1 bg-zinc-800 hover:bg-zinc-700 text-white rounded-full w-4.5 h-4.5 flex items-center justify-center text-[8px] shadow-md z-25 cursor-pointer hover:scale-110 active:scale-95 transition-all border border-white/20"
+                              className="absolute -top-1.5 -left-1.5 bg-zinc-800 hover:bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[9px] shadow-md z-20 cursor-pointer border border-white/20 transition-all active:scale-90"
+                              title="Remove gems"
                             >
                               <X className="w-2.5 h-2.5" strokeWidth={3.5} />
                             </button>
@@ -2870,9 +2935,9 @@ ${JSON.stringify(payload)}`;
                           return (
                             <div
                               key={`co-their-modal-${idx}`}
-                              className={`relative group bg-[#18181b] border border-white/5 rounded-2xl p-3 pt-4 pb-3 text-center flex flex-col items-center justify-between ${
-                                hasSign ? "min-h-[140px]" : "min-h-[112px] pb-2.5"
-                              } hover:border-zinc-700/60 hover:scale-[1.02] transition-all duration-300 shadow-md`}
+                              className={`relative group bg-[#161619] border border-white/10 rounded-2xl p-2.5 pt-3.5 pb-2.5 text-center flex flex-col items-center justify-between ${
+                                hasSign ? "min-h-[142px] pb-3" : "min-h-[116px]"
+                              } hover:border-white/30 transition-all duration-300 shadow-md`}
                             >
                               <button
                                 type="button"
@@ -2883,36 +2948,43 @@ ${JSON.stringify(payload)}`;
                                     setCoTheirOfferItems(coTheirOfferItems.filter((_, i) => i !== idx));
                                   }
                                 }}
-                                className="absolute -top-1 -left-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-full w-5.5 h-5.5 flex items-center justify-center text-[10px] shadow-md z-25 select-none cursor-pointer hover:scale-110 active:scale-95 transition-all duration-200 border border-white/10"
+                                className="absolute -top-1.5 -left-1.5 bg-zinc-800 hover:bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[9px] shadow-md z-20 cursor-pointer border border-white/20 transition-all active:scale-90"
                                 title={item.qty > 1 ? "Decrement quantity" : "Remove unit"}
                               >
                                 <X className="w-2.5 h-2.5" strokeWidth={3.5} />
                               </button>
-                              <div className="absolute -top-2 -right-2 bg-[#2a2d36] border-2 border-[#18181b] text-white font-bold text-[9px] w-5 h-5 flex items-center justify-center rounded-full shadow-md select-none z-25">
+                              <div className="absolute -top-1.5 -right-1.5 bg-[#252730] border border-white/20 text-white font-mono font-bold text-[9px] px-1.5 py-0.5 rounded-full shadow-md select-none z-20">
                                 x{item.qty}
                               </div>
-                              <div className="flex flex-col items-center gap-1.5 w-full">
-                                <div className="relative group/img overflow-hidden rounded-xl w-14 h-14 bg-[#050505] shadow-inner">
+                              <div className="flex flex-col items-center gap-1 w-full min-w-0">
+                                <div className="relative group/img overflow-hidden rounded-xl w-11 h-11 bg-black/40 flex items-center justify-center p-0.5 shadow-inner shrink-0">
                                   <img
                                     src={item.unit?.img}
                                     alt={item.unit?.name}
                                     className="relative w-full h-full object-contain scale-110 group-hover/img:scale-125 transition-transform duration-300 z-10"
+                                    loading="lazy"
                                   />
                                 </div>
                                 <div className="flex flex-col items-center w-full min-w-0">
-                                  <span className="text-xs font-bold text-white truncate w-full px-1 tracking-wide leading-tight mt-1">{item.unit?.name}</span>
+                                  <div className="h-7 flex items-center justify-center w-full min-w-0 mt-1">
+                                    <span className="text-[10.5px] font-bold text-white leading-tight text-center break-words line-clamp-2 px-0.5" title={item.unit?.name}>
+                                      {item.unit?.name}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
                               {hasSign && (
                                 <div
-                                  className="text-[9px] font-black px-2 py-0.5 rounded-lg border w-[85%] truncate shadow-md mt-1.5"
+                                  className="text-[9.5px] font-black px-1.5 py-1 rounded-lg border w-full text-center uppercase tracking-normal leading-tight shadow-md mt-1.5 transition-all duration-300 select-none flex items-center justify-center gap-1 shrink-0"
                                   style={{
-                                    background: item.sign.color.includes("gradient") ? item.sign.color : undefined,
-                                    borderColor: item.sign.color.includes("gradient") ? "rgba(255,255,255,0.2)" : item.sign.color + "50",
-                                    color: item.sign.color.includes("gradient") ? "#fff" : item.sign.color,
+                                    background: item.sign.color.includes("gradient") ? item.sign.color : "#09090b",
+                                    borderColor: item.sign.color,
+                                    color: item.sign.color,
+                                    boxShadow: `0 0 8px ${item.sign.color}20`
                                   }}
+                                  title={`Signature: ${item.sign.name}`}
                                 >
-                                  ✍ {item.sign.name}
+                                  ✍️ {item.sign.name}
                                 </div>
                               )}
                             </div>
@@ -3208,7 +3280,7 @@ ${JSON.stringify(payload)}`;
                 <div className="flex gap-2 items-center">
                   <button
                     type="button"
-                    onClick={() => setPickerSelectedQty(Math.max(1, pickerSelectedQty - 1))}
+                    onClick={() => setPickerSelectedQty(Math.max(1, (Number(pickerSelectedQty) || 1) - 1))}
                     className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 text-white font-black text-lg hover:bg-white/10 hover:border-white/20 active:scale-95 transition flex items-center justify-center select-none cursor-pointer"
                   >
                     -
@@ -3217,12 +3289,27 @@ ${JSON.stringify(payload)}`;
                     type="number"
                     min="1"
                     value={pickerSelectedQty}
-                    onChange={(e) => setPickerSelectedQty(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "") {
+                        setPickerSelectedQty("");
+                      } else {
+                        const parsed = parseInt(val, 10);
+                        if (!isNaN(parsed)) {
+                          setPickerSelectedQty(Math.max(1, parsed));
+                        }
+                      }
+                    }}
+                    onBlur={() => {
+                      if (pickerSelectedQty === "" || pickerSelectedQty < 1) {
+                        setPickerSelectedQty(1);
+                      }
+                    }}
                     className="flex-1 bg-white/[0.03] border border-white/10 rounded-xl p-3 text-white text-base text-center focus:outline-none focus:border-white/50/30 transition font-black"
                   />
                   <button
                     type="button"
-                    onClick={() => setPickerSelectedQty(pickerSelectedQty + 1)}
+                    onClick={() => setPickerSelectedQty((Number(pickerSelectedQty) || 1) + 1)}
                     className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 text-white font-black text-lg hover:bg-white/10 hover:border-white/20 active:scale-95 transition flex items-center justify-center select-none cursor-pointer"
                   >
                     +
@@ -3231,16 +3318,17 @@ ${JSON.stringify(payload)}`;
               </div>
 
               <div className="bg-white/10 border border-white/20 p-3 rounded-xl text-center text-xs font-black text-white font-mono tracking-wide shadow-sm">
-                Combined Value: 💎 {Math.round(pickerSelectedUnit.gems * (1 + pickerSelectedSign.percent / 100) * pickerSelectedQty).toLocaleString()}
+                Combined Value: 💎 {Math.round(pickerSelectedUnit.gems * (1 + pickerSelectedSign.percent / 100) * (Number(pickerSelectedQty) || 1)).toLocaleString()}
               </div>
 
               <button
                 type="button"
                 onClick={() => {
+                  const finalQty = Number(pickerSelectedQty) || 1;
                   const newItem: TradeOfferItem = {
                     unit: pickerSelectedUnit,
                     sign: pickerSelectedSign,
-                    qty: pickerSelectedQty
+                    qty: finalQty
                   };
                   if (pickerContext === "dm-proposal") {
                     if (unitPickerSide === 'your') {
@@ -3249,7 +3337,7 @@ ${JSON.stringify(payload)}`;
                       );
                       if (existingIdx > -1) {
                         const updated = [...dmYourOfferItems];
-                        updated[existingIdx].qty += pickerSelectedQty;
+                        updated[existingIdx].qty += finalQty;
                         setDmYourOfferItems(updated);
                       } else {
                         setDmYourOfferItems([...dmYourOfferItems, newItem]);
@@ -3260,7 +3348,7 @@ ${JSON.stringify(payload)}`;
                       );
                       if (existingIdx > -1) {
                         const updated = [...dmTheirOfferItems];
-                        updated[existingIdx].qty += pickerSelectedQty;
+                        updated[existingIdx].qty += finalQty;
                         setDmTheirOfferItems(updated);
                       } else {
                         setDmTheirOfferItems([...dmTheirOfferItems, newItem]);
@@ -3273,7 +3361,7 @@ ${JSON.stringify(payload)}`;
                       );
                       if (existingIdx > -1) {
                         const updated = [...coYourOfferItems];
-                        updated[existingIdx].qty += pickerSelectedQty;
+                        updated[existingIdx].qty += finalQty;
                         setCoYourOfferItems(updated);
                       } else {
                         setCoYourOfferItems([...coYourOfferItems, newItem]);
@@ -3284,7 +3372,7 @@ ${JSON.stringify(payload)}`;
                       );
                       if (existingIdx > -1) {
                         const updated = [...coTheirOfferItems];
-                        updated[existingIdx].qty += pickerSelectedQty;
+                        updated[existingIdx].qty += finalQty;
                         setCoTheirOfferItems(updated);
                       } else {
                         setCoTheirOfferItems([...coTheirOfferItems, newItem]);
@@ -3297,7 +3385,7 @@ ${JSON.stringify(payload)}`;
                       );
                       if (existingIdx > -1) {
                         const updated = [...yourOfferItems];
-                        updated[existingIdx].qty += pickerSelectedQty;
+                        updated[existingIdx].qty += finalQty;
                         setYourOfferItems(updated);
                       } else {
                         setYourOfferItems([...yourOfferItems, newItem]);
@@ -3308,7 +3396,7 @@ ${JSON.stringify(payload)}`;
                       );
                       if (existingIdx > -1) {
                         const updated = [...theirOfferItems];
-                        updated[existingIdx].qty += pickerSelectedQty;
+                        updated[existingIdx].qty += finalQty;
                         setTheirOfferItems(updated);
                       } else {
                         setTheirOfferItems([...theirOfferItems, newItem]);

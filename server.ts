@@ -124,13 +124,18 @@ function resolveSession(sessionToken: string | undefined): any {
   if (!sessionToken) return null;
   const adminPassword = process.env.ADMIN_PASSWORD || "aK9#mP2$vL8!qZ5@wN3&rY7*bT1^uJ4%xV6#Qm9$";
 
-  if (activeAdminSessions[sessionToken]?.isKicked) {
-    return null;
-  }
-
   if (sessionToken === adminPassword) {
     const bypassToken = "session_bypass_auto";
-    if (activeAdminSessions[bypassToken]?.isKicked) return null;
+    if (activeAdminSessions[bypassToken]?.isKicked) {
+      return {
+        id: 999999999,
+        name: "Master Admin",
+        displayName: "Master Super Admin (Owner)",
+        avatar: "https://img.icons8.com/color/48/shield.png",
+        isAdmin: false,
+        isSuperAdmin: false,
+      };
+    }
     sessions[bypassToken] = {
       id: 999999999,
       name: "Master Admin",
@@ -155,7 +160,15 @@ function resolveSession(sessionToken: string | undefined): any {
 
   const userSess = sessions[sessionToken];
   if (!userSess) return null;
-  if (activeAdminSessions[sessionToken]?.isKicked) return null;
+
+  if (activeAdminSessions[sessionToken]?.isKicked) {
+    // Strip admin privileges so they are locked out of admin panel, but keep session valid for regular use
+    return {
+      ...userSess,
+      isAdmin: false,
+      isSuperAdmin: false,
+    };
+  }
 
   return userSess;
 }
@@ -347,8 +360,24 @@ activeReports.forEach(r => {
 const bannedUsers: any[] = dbState.bannedUsers || [];
 Object.assign(sessions, dbState.sessions || {});
 const adminLoginLogs: any[] = dbState.adminLoginLogs || [];
+// Clear existing notification logs as requested by user
+adminLoginLogs.length = 0;
 const activeAdminSessions: Record<string, any> = dbState.activeAdminSessions || {};
 const adminAuditLogs: any[] = dbState.adminAuditLogs || [];
+
+function isVsnnnnnUser(sessionToken: string | undefined, user: any): boolean {
+  if (!sessionToken && !user) return false;
+  const sess = sessionToken ? activeAdminSessions[sessionToken] : null;
+  const tag1 = (user?.discordTag || "").replace(/^@/, "").trim().toLowerCase();
+  const tag2 = (user?.name || "").replace(/^@/, "").trim().toLowerCase();
+  const tag3 = (sess?.discordTag || "").replace(/^@/, "").trim().toLowerCase();
+  const tag4 = (sess?.adminName || "").replace(/^@/, "").trim().toLowerCase();
+  const tag5 = (sess?.robloxName || "").replace(/^@/, "").trim().toLowerCase();
+
+  const isMasterPass = sessionToken === (process.env.ADMIN_PASSWORD || "aK9#mP2$vL8!qZ5@wN3&rY7*bT1^uJ4%xV6#Qm9$") || sessionToken === "session_bypass_auto";
+
+  return isMasterPass || tag1 === "vsnnnnn" || tag2 === "vsnnnnn" || tag3 === "vsnnnnn" || tag4 === "vsnnnnn" || tag5 === "vsnnnnn";
+}
 
 function logAdminAction(adminName: string, action: string, details: string) {
   const entry = {
@@ -794,10 +823,12 @@ export const initPromise = (async () => {
 
     const currentUserIsSuper = !!user.isSuperAdmin || sessionToken === (process.env.ADMIN_PASSWORD || "aK9#mP2$vL8!qZ5@wN3&rY7*bT1^uJ4%xV6#Qm9$");
     const activeList = Object.values(activeAdminSessions).filter(s => !s.isKicked);
+    const canManageVsnnnnn = isVsnnnnnUser(sessionToken, user);
 
     res.json({
       success: true,
       isSuperAdmin: currentUserIsSuper,
+      isVsnnnnn: canManageVsnnnnn,
       currentSessionToken: sessionToken,
       activeSessions: activeList,
       loginLogs: adminLoginLogs,
@@ -812,9 +843,9 @@ export const initPromise = (async () => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const isSuper = !!user.isSuperAdmin || sessionToken === (process.env.ADMIN_PASSWORD || "aK9#mP2$vL8!qZ5@wN3&rY7*bT1^uJ4%xV6#Qm9$");
-    if (!isSuper) {
-      return res.status(403).json({ error: "Access Denied: Only Master Super Admin has permission to kick admin sessions!" });
+    const canManageVsnnnnn = isVsnnnnnUser(sessionToken, user);
+    if (!canManageVsnnnnn) {
+      return res.status(403).json({ error: "Access Denied: Only Discord user vsnnnnn can revoke admin panel access!" });
     }
 
     const { targetSessionToken } = req.body;
@@ -823,22 +854,23 @@ export const initPromise = (async () => {
     }
 
     if (targetSessionToken === sessionToken) {
-      return res.status(400).json({ error: "Cannot kick your own active Master session!" });
+      return res.status(400).json({ error: "Cannot kick your own active session!" });
     }
 
     if (activeAdminSessions[targetSessionToken]) {
       activeAdminSessions[targetSessionToken].isKicked = true;
     }
-    delete sessions[targetSessionToken];
+    // We preserve the actual session so they stay logged into the trade site as a regular user
+    // delete sessions[targetSessionToken];
 
     adminLoginLogs.unshift({
       id: "log_kick_" + Date.now(),
       timestamp: new Date().toISOString(),
-      userAgent: `Session kicked by Master Admin`,
+      userAgent: `Session revoked by vsnnnnn`,
       isSuperAdmin: true,
       sessionToken: targetSessionToken,
       unread: true,
-      text: `⛔ Session ${targetSessionToken.substring(0, 10)}... was KICKED out of Admin Panel by Master Admin`
+      text: `⛔ Session ${targetSessionToken.substring(0, 10)}... access was REVOKED by Discord user vsnnnnn`
     });
 
     persistState();
@@ -849,6 +881,23 @@ export const initPromise = (async () => {
     adminLoginLogs.forEach(l => l.unread = false);
     persistState();
     res.json({ success: true });
+  });
+
+  app.post("/api/admin/logs/clear", (req, res) => {
+    const sessionToken = req.headers.authorization;
+    const user = resolveSession(sessionToken);
+    if (!sessionToken || !user || !checkIsAdmin(user)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const canManageVsnnnnn = isVsnnnnnUser(sessionToken, user);
+    if (!canManageVsnnnnn) {
+      return res.status(403).json({ error: "Access Denied: Only Discord user vsnnnnn can clear login notification history!" });
+    }
+
+    adminLoginLogs.length = 0;
+    persistState();
+    res.json({ success: true, message: "Login notification history cleared successfully!" });
   });
 
   app.get("/api/admin/audit-logs", (req, res) => {

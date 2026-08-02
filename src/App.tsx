@@ -404,21 +404,8 @@ export default function App() {
         const data = await res.json();
         setMaintenanceActive(data.active);
       } else {
-        const customPass = prompt("Password changed or not saved. Enter admin password:", "aK9#mP2$vL8!qZ5@wN3&rY7*bT1^uJ4%xV6#Qm9$");
-        if (customPass) {
-          const retryRes = await fetch("/api/maintenance/toggle", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ password: customPass, active: newVal })
-          });
-          if (retryRes.ok) {
-            const data = await retryRes.json();
-            setMaintenanceActive(data.active);
-            localStorage.setItem("origin_admin_password", customPass);
-          } else {
-            alert("Incorrect password!");
-          }
-        }
+        const errData = await res.json().catch(() => ({}));
+        setAdminError(errData.error || "Failed to update maintenance status. Invalid admin password.");
       }
     } catch (err) {
       alert("Failed to update maintenance status on the server.");

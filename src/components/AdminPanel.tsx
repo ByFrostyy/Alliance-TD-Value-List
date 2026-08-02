@@ -88,6 +88,7 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
   const [adminAuditLogs, setAdminAuditLogs] = useState<any[]>([]);
   const [auditSearchQuery, setAuditSearchQuery] = useState("");
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isVsnnnnn, setIsVsnnnnn] = useState(false);
   const [currentSessionToken, setCurrentSessionToken] = useState("");
   const [kickingToken, setKickingToken] = useState<string | null>(null);
 
@@ -211,6 +212,7 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
       if (res.ok) {
         const data = await res.json();
         setIsSuperAdmin(!!data.isSuperAdmin);
+        setIsVsnnnnn(!!data.isVsnnnnn);
         setCurrentSessionToken(data.currentSessionToken || "");
         setActiveAdminSessions(data.activeSessions || []);
         setAdminLoginLogs(data.loginLogs || []);
@@ -219,9 +221,10 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
         if (data.kicked) {
           localStorage.removeItem("origin_admin_bypass");
           localStorage.removeItem("origin_admin_password");
-          localStorage.removeItem("lttd_rb_session");
+          // Do NOT remove lttd_rb_session so they stay logged in as a normal user
           onClose();
-          alert("Your access to the Admin Panel was revoked by the Master Admin!");
+          alert("Your access to the Admin Panel was revoked by the Master Admin! You can log back in with the password.");
+          window.location.reload();
         }
       }
     } catch (err) {
@@ -287,6 +290,31 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const handleClearLoginLogs = async () => {
+    triggerConfirm(
+      "Clear Login History?",
+      "Are you sure you want to permanently clear all login notification logs? This action is restricted to Discord user vsnnnnn.",
+      async () => {
+        try {
+          const token = getAdminToken();
+          const res = await fetch("/api/admin/logs/clear", {
+            method: "POST",
+            headers: { "Authorization": token }
+          });
+          if (res.ok) {
+            setAdminLoginLogs([]);
+            showToast("Login notification history cleared successfully!", "success");
+          } else {
+            const errData = await res.json();
+            showToast(errData.error || "Failed to clear login history", "error");
+          }
+        } catch (err) {
+          showToast("Error clearing login history", "error");
+        }
+      }
+    );
   };
 
   useEffect(() => {
@@ -1446,14 +1474,26 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
                         <p className="text-[11px] text-slate-400 font-mono">Real-time alerts whenever an administrator logs into the Admin Panel</p>
                       </div>
                     </div>
-                    {adminLoginLogs.some(l => l.unread) && (
-                      <button
-                        onClick={handleMarkLogsAsRead}
-                        className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-slate-200 transition cursor-pointer"
-                      >
-                        Mark as Read
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {adminLoginLogs.some(l => l.unread) && (
+                        <button
+                          onClick={handleMarkLogsAsRead}
+                          className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-slate-200 transition cursor-pointer"
+                        >
+                          Mark as Read
+                        </button>
+                      )}
+                      {isVsnnnnn && adminLoginLogs.length > 0 && (
+                        <button
+                          onClick={handleClearLoginLogs}
+                          className="px-3 py-1.5 rounded-xl bg-red-600/30 hover:bg-red-600/50 border border-red-500/40 text-xs font-bold text-red-200 transition cursor-pointer flex items-center gap-1.5"
+                          title="Clear all login notification logs (Restricted to Discord user vsnnnnn)"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Clear History
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <div className="max-h-48 overflow-y-auto divide-y divide-white/5 bg-black/40 border border-white/5 rounded-xl p-2 font-mono scrollbar-thin">
@@ -1502,9 +1542,9 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
                           Active Admin Sessions ({activeAdminSessions.length})
                         </h4>
                         <p className="text-[11px] text-slate-400 font-mono">
-                          {isSuperAdmin
-                            ? "⭐ Only you (Master Admin) have full permissions to revoke active sessions."
-                            : "🔒 Only the Master Admin has permissions to revoke other active admin sessions."}
+                          {isVsnnnnn
+                            ? "⭐ Only Discord user vsnnnnn has full authority to revoke active sessions."
+                            : "🔒 Only Discord user vsnnnnn has permissions to revoke active admin sessions."}
                         </p>
                       </div>
                     </div>
@@ -1545,7 +1585,7 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
                                   <span className={`px-2 py-0.2 rounded text-[9px] font-black uppercase ${
                                     sess.isSuperAdmin ? "bg-amber-500/20 text-amber-300" : "bg-blue-500/20 text-blue-300"
                                   }`}>
-                                    {sess.isSuperAdmin ? "Master Admin (You)" : "Administrator"}
+                                    {sess.isSuperAdmin ? "Master Admin" : "Administrator"}
                                   </span>
                                   {isCurrent && (
                                     <span className="text-[10px] text-emerald-400 font-bold">(Current Session)</span>
@@ -1555,10 +1595,10 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
                               </div>
                             </div>
 
-                            {/* KICK BUTTON (Only visible to Super Admin for non-current sessions) */}
+                            {/* KICK BUTTON (Only visible to vsnnnnn for non-current sessions) */}
                             {!isCurrent && (
                               <div>
-                                {isSuperAdmin ? (
+                                {isVsnnnnn ? (
                                   <button
                                     onClick={() => handleKickAdminSession(sess.sessionToken)}
                                     disabled={kickingToken === sess.sessionToken}
@@ -1570,7 +1610,7 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
                                   </button>
                                 ) : (
                                   <span className="text-[10px] text-slate-500 font-mono italic">
-                                    Protected by Master Admin
+                                    Protected (Only vsnnnnn)
                                   </span>
                                 )}
                               </div>

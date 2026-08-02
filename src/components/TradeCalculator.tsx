@@ -84,7 +84,7 @@ export default function TradeCalculator({ units: propUnits, signatures: propSign
   const [isConfigureUnitOpen, setIsConfigureUnitOpen] = useState(false);
   const [activeConfigUnit, setActiveConfigUnit] = useState<Unit | null>(null);
   const [configSign, setConfigSign] = useState<SignValue>(signatures.find(item => item.name === "None") || signatures[0]);
-  const [configQty, setConfigQty] = useState<number>(1);
+  const [configQty, setConfigQty] = useState<number | "">(1);
 
   // Dropdown open states
   const [isSignDropdownOpen, setIsSignDropdownOpen] = useState(false);
@@ -404,10 +404,12 @@ export default function TradeCalculator({ units: propUnits, signatures: propSign
   const handleConfirmAddToOffer = () => {
     if (!activeConfigUnit) return;
 
+    const finalQty = Number(configQty) || 1;
+
     const newItem: TradeOfferItem = {
       unit: activeConfigUnit,
       sign: configSign,
-      qty: configQty
+      qty: finalQty
     };
 
     const targetList = activeOfferSide === "your" ? yourOffer : theirOffer;
@@ -422,7 +424,7 @@ export default function TradeCalculator({ units: propUnits, signatures: propSign
     if (matchedIdx > -1) {
       setTargetList(prev => {
         const copy = [...prev];
-        copy[matchedIdx].qty += configQty;
+        copy[matchedIdx].qty += finalQty;
         return copy;
       });
     } else {
@@ -555,47 +557,53 @@ export default function TradeCalculator({ units: propUnits, signatures: propSign
                 return (
                   <div
                     key={`your-calc-${idx}`}
-                    className={`relative group bg-[#18181b] border border-white/5 rounded-2xl p-3 pt-4 pb-3 text-center flex flex-col items-center justify-between ${
-                      isDecorated ? "min-h-[140px]" : "min-h-[112px] pb-2.5"
-                    } hover:border-zinc-700/60 hover:scale-[1.02] transition-all duration-300 shadow-md`}
+                    className={`relative group bg-[#161619] border border-white/10 rounded-2xl p-2.5 pt-3.5 pb-3 text-center flex flex-col items-center justify-between ${
+                      hasSign ? "min-h-[148px]" : "min-h-[116px]"
+                    } hover:border-zinc-500/60 hover:scale-[1.02] transition-all duration-300 shadow-md`}
                   >
                     <button
                       onClick={() => handleRemoveItem("your", idx)}
-                      className="absolute -top-1 -left-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-full w-5.5 h-5.5 flex items-center justify-center text-[10px] shadow-md z-25 select-none cursor-pointer hover:scale-110 active:scale-95 transition-all duration-200 border border-white/10"
+                      className="absolute -top-1.5 -left-1.5 bg-zinc-800 hover:bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[9px] shadow-md z-20 select-none cursor-pointer border border-white/20 transition-all active:scale-90"
+                      title="Remove unit"
                     >
                       <X className="w-2.5 h-2.5" strokeWidth={3.5} />
                     </button>
-                    <div className="absolute -top-2 -right-2 bg-[#2a2d36] border-2 border-[#18181b] text-white font-bold text-[9px] w-5 h-5 flex items-center justify-center rounded-full shadow-md select-none z-25">
+                    <div className="absolute -top-1.5 -right-1.5 bg-[#22242c] border border-white/20 text-white font-mono font-bold text-[9px] px-1.5 py-0.5 rounded-full shadow-md select-none z-20">
                       x{item.qty}
                     </div>
 
-                    <div className="flex flex-col items-center gap-1.5 w-full">
-                      <div className="relative group/img overflow-hidden rounded-xl w-14 h-14 bg-[#050505] shadow-inner">
+                    <div className="flex flex-col items-center gap-1 w-full min-w-0">
+                      <div className="relative group/img overflow-hidden rounded-xl w-12 h-12 bg-[#050505] shadow-inner shrink-0 flex items-center justify-center p-0.5">
                         <img 
                           src={item.unit.img} 
                           alt={item.unit.name} 
-                          className="relative w-full h-full object-contain scale-110 group-hover/img:scale-[1.8] transition-transform duration-300 z-10" 
+                          className="relative w-full h-full object-contain scale-110 group-hover/img:scale-125 transition-transform duration-300 z-10" 
+                          loading="lazy"
                         />
                       </div>
-                      <div className="flex flex-col items-center w-full min-w-0">
-                        <span className="text-xs font-bold text-white truncate w-full px-1 tracking-wide leading-tight mt-1">{item.unit.name}</span>
-                        <span className="text-[10px] text-slate-400 font-mono block mt-1">D: {item.unit.demand}/10</span>
+                      <div className="flex flex-col items-center w-full min-w-0 mt-0.5">
+                        <div className="h-7 flex items-center justify-center w-full min-w-0">
+                          <span className="text-[10.5px] font-bold text-white leading-tight text-center break-words line-clamp-2 px-0.5" title={item.unit.name}>
+                            {item.unit.name}
+                          </span>
+                        </div>
+                        <span className="text-[9.5px] text-slate-400 font-mono block mt-0.5">D: {item.unit.demand}/10</span>
                       </div>
                     </div>
 
-                    <div className="w-full flex flex-col gap-1 mt-2 shrink-0">
+                    <div className="w-full flex flex-col gap-1 mt-1 shrink-0">
                       {hasSign && (
                         <div
-                          className="text-[9px] font-black px-2.5 py-1 rounded-full border overflow-hidden truncate w-full text-center tracking-wide flex items-center justify-center gap-1 shadow-sm uppercase shrink-0"
+                          className="text-[9.5px] font-black px-1.5 py-1 rounded-lg border w-full text-center uppercase tracking-normal leading-tight shadow-md mt-1.5 transition-all duration-300 select-none flex items-center justify-center gap-1 shrink-0"
                           style={{
-                            background: item.sign.color.includes("gradient") ? item.sign.color : undefined,
-                            backgroundColor: item.sign.color.includes("gradient") ? undefined : item.sign.color + "15",
-                            borderColor: item.sign.color.includes("gradient") ? "rgba(255,255,255,0.2)" : item.sign.color + "30",
-                            color: item.sign.color.includes("gradient") ? "#fff" : item.sign.color,
-                            textShadow: item.sign.color.includes("gradient") ? "0 1px 2px rgba(0,0,0,0.4)" : undefined
+                            background: item.sign.color.includes("gradient") ? item.sign.color : "#09090b",
+                            borderColor: item.sign.color,
+                            color: item.sign.color,
+                            boxShadow: `0 0 8px ${item.sign.color}20`
                           }}
+                          title={`Signature: ${item.sign.name}`}
                         >
-                          ✍ {item.sign.name}
+                          ✍️ {item.sign.name}
                         </div>
                       )}
                     </div>
@@ -683,47 +691,53 @@ export default function TradeCalculator({ units: propUnits, signatures: propSign
                 return (
                   <div
                     key={`their-calc-${idx}`}
-                    className={`relative group bg-[#18181b] border border-white/5 rounded-2xl p-3 pt-4 pb-3 text-center flex flex-col items-center justify-between ${
-                      isDecorated ? "min-h-[140px]" : "min-h-[112px] pb-2.5"
-                    } hover:border-zinc-700/60 hover:scale-[1.02] transition-all duration-300 shadow-md`}
+                    className={`relative group bg-[#161619] border border-white/10 rounded-2xl p-2.5 pt-3.5 pb-3 text-center flex flex-col items-center justify-between ${
+                      hasSign ? "min-h-[148px]" : "min-h-[116px]"
+                    } hover:border-zinc-500/60 hover:scale-[1.02] transition-all duration-300 shadow-md`}
                   >
                     <button
                       onClick={() => handleRemoveItem("their", idx)}
-                      className="absolute -top-1 -left-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-full w-5.5 h-5.5 flex items-center justify-center text-[10px] shadow-md z-25 select-none cursor-pointer hover:scale-110 active:scale-95 transition-all duration-200 border border-white/10"
+                      className="absolute -top-1.5 -left-1.5 bg-zinc-800 hover:bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[9px] shadow-md z-20 select-none cursor-pointer border border-white/20 transition-all active:scale-90"
+                      title="Remove unit"
                     >
                       <X className="w-2.5 h-2.5" strokeWidth={3.5} />
                     </button>
-                    <div className="absolute -top-2 -right-2 bg-[#2a2d36] border-2 border-[#18181b] text-white font-bold text-[9px] w-5 h-5 flex items-center justify-center rounded-full shadow-md select-none z-25">
+                    <div className="absolute -top-1.5 -right-1.5 bg-[#22242c] border border-white/20 text-white font-mono font-bold text-[9px] px-1.5 py-0.5 rounded-full shadow-md select-none z-20">
                       x{item.qty}
                     </div>
 
-                    <div className="flex flex-col items-center gap-1.5 w-full">
-                      <div className="relative group/img overflow-hidden rounded-xl w-14 h-14 bg-[#050505] shadow-inner">
+                    <div className="flex flex-col items-center gap-1 w-full min-w-0">
+                      <div className="relative group/img overflow-hidden rounded-xl w-12 h-12 bg-[#050505] shadow-inner shrink-0 flex items-center justify-center p-0.5">
                         <img 
                           src={item.unit.img} 
                           alt={item.unit.name} 
-                          className="relative w-full h-full object-contain scale-110 group-hover/img:scale-[1.8] transition-transform duration-300 z-10" 
+                          className="relative w-full h-full object-contain scale-110 group-hover/img:scale-125 transition-transform duration-300 z-10" 
+                          loading="lazy"
                         />
                       </div>
-                      <div className="flex flex-col items-center w-full min-w-0">
-                        <span className="text-xs font-bold text-white truncate w-full px-1 tracking-wide leading-tight mt-1">{item.unit.name}</span>
-                        <span className="text-[10px] text-slate-400 font-mono block mt-1">D: {item.unit.demand}/10</span>
+                      <div className="flex flex-col items-center w-full min-w-0 mt-0.5">
+                        <div className="h-7 flex items-center justify-center w-full min-w-0">
+                          <span className="text-[10.5px] font-bold text-white leading-tight text-center break-words line-clamp-2 px-0.5" title={item.unit.name}>
+                            {item.unit.name}
+                          </span>
+                        </div>
+                        <span className="text-[9.5px] text-slate-400 font-mono block mt-0.5">D: {item.unit.demand}/10</span>
                       </div>
                     </div>
 
-                    <div className="w-full flex flex-col gap-1 mt-2 shrink-0">
+                    <div className="w-full flex flex-col gap-1 mt-1 shrink-0">
                       {hasSign && (
                         <div
-                          className="text-[9px] font-black px-2.5 py-1 rounded-full border overflow-hidden truncate w-full text-center tracking-wide flex items-center justify-center gap-1 shadow-sm uppercase shrink-0"
+                          className="text-[9.5px] font-black px-1.5 py-1 rounded-lg border w-full text-center uppercase tracking-normal leading-tight shadow-md mt-1.5 transition-all duration-300 select-none flex items-center justify-center gap-1 shrink-0"
                           style={{
-                            background: item.sign.color.includes("gradient") ? item.sign.color : undefined,
-                            backgroundColor: item.sign.color.includes("gradient") ? undefined : item.sign.color + "15",
-                            borderColor: item.sign.color.includes("gradient") ? "rgba(255,255,255,0.2)" : item.sign.color + "30",
-                            color: item.sign.color.includes("gradient") ? "#fff" : item.sign.color,
-                            textShadow: item.sign.color.includes("gradient") ? "0 1px 2px rgba(0,0,0,0.4)" : undefined
+                            background: item.sign.color.includes("gradient") ? item.sign.color : "#09090b",
+                            borderColor: item.sign.color,
+                            color: item.sign.color,
+                            boxShadow: `0 0 8px ${item.sign.color}20`
                           }}
+                          title={`Signature: ${item.sign.name}`}
                         >
-                          ✍ {item.sign.name}
+                          ✍️ {item.sign.name}
                         </div>
                       )}
                     </div>
@@ -1169,7 +1183,7 @@ export default function TradeCalculator({ units: propUnits, signatures: propSign
                 <div className="flex gap-2 items-center">
                   <button
                     type="button"
-                    onClick={() => setConfigQty(Math.max(1, configQty - 1))}
+                    onClick={() => setConfigQty(Math.max(1, (Number(configQty) || 1) - 1))}
                     className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 text-white font-black text-lg hover:bg-white/10 hover:border-white/20 active:scale-95 transition flex items-center justify-center select-none cursor-pointer"
                   >
                     -
@@ -1178,12 +1192,27 @@ export default function TradeCalculator({ units: propUnits, signatures: propSign
                     type="number"
                     min="1"
                     value={configQty}
-                    onChange={e => setConfigQty(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (val === "") {
+                        setConfigQty("");
+                      } else {
+                        const parsed = parseInt(val, 10);
+                        if (!isNaN(parsed)) {
+                          setConfigQty(Math.max(1, parsed));
+                        }
+                      }
+                    }}
+                    onBlur={() => {
+                      if (configQty === "" || configQty < 1) {
+                        setConfigQty(1);
+                      }
+                    }}
                     className="flex-1 bg-white/[0.03] border border-white/10 rounded-xl p-3 text-white text-base text-center focus:outline-none focus:border-amber-500/50 transition font-black"
                   />
                   <button
                     type="button"
-                    onClick={() => setConfigQty(configQty + 1)}
+                    onClick={() => setConfigQty((Number(configQty) || 1) + 1)}
                     className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 text-white font-black text-lg hover:bg-white/10 hover:border-white/20 active:scale-95 transition flex items-center justify-center select-none cursor-pointer"
                   >
                     +
@@ -1192,7 +1221,7 @@ export default function TradeCalculator({ units: propUnits, signatures: propSign
               </div>
 
               <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-xl text-center text-xs font-black text-blue-400 font-mono tracking-wide shadow-[0_2px_12px_rgba(59,130,246,0.05),inset_0_1px_2px_rgba(59,130,246,0.1)]">
-                💎 Value: {(singleUnitCombinedValue * configQty).toLocaleString()}
+                💎 Value: {(singleUnitCombinedValue * (Number(configQty) || 1)).toLocaleString()}
               </div>
 
               <button
