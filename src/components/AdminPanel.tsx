@@ -1307,10 +1307,33 @@ export function AdminPanel({ isOpen, onClose, onRefreshData }: AdminPanelProps) 
   };
 
 
-  const filteredUnits = units.filter(u => 
-    u.name.toLowerCase().includes(unitsSearchQuery.toLowerCase()) ||
-    u.rarity.toLowerCase().includes(unitsSearchQuery.toLowerCase())
-  );
+  const filteredUnits = React.useMemo(() => {
+    const getRarityIndex = (rarity: string): number => {
+      const r = (rarity || "").toLowerCase();
+      if (r === "basic" || r === "common") return 1;
+      if (r === "uncommon") return 2;
+      if (r === "rare") return 3;
+      if (r === "epic") return 4;
+      if (r === "legendary") return 5;
+      if (r === "mythic") return 6;
+      if (r === "exclusive") return 7;
+      if (r === "godly") return 8;
+      if (r === "crate") return 9;
+      return 10;
+    };
+
+    const list = units.filter(u => 
+      u.name.toLowerCase().includes(unitsSearchQuery.toLowerCase()) ||
+      u.rarity.toLowerCase().includes(unitsSearchQuery.toLowerCase())
+    );
+
+    return [...list].sort((a, b) => {
+      const rA = getRarityIndex(a.rarity);
+      const rB = getRarityIndex(b.rarity);
+      if (rA !== rB) return rA - rB;
+      return a.gems - b.gems;
+    });
+  }, [units, unitsSearchQuery]);
 
   if (!isOpen) return null;
 

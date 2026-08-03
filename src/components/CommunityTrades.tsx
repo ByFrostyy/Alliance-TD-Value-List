@@ -308,12 +308,33 @@ export default function CommunityTrades({ units: propUnits, signatures: propSign
   const [isPickerSignDropdownOpen, setIsPickerSignDropdownOpen] = useState(false);
 
   const filteredPickerUnits = React.useMemo(() => {
-    return units.filter(u => {
+    const getRarityIndex = (rarity: string): number => {
+      const r = (rarity || "").toLowerCase();
+      if (r === "basic" || r === "common") return 1;
+      if (r === "uncommon") return 2;
+      if (r === "rare") return 3;
+      if (r === "epic") return 4;
+      if (r === "legendary") return 5;
+      if (r === "mythic") return 6;
+      if (r === "exclusive") return 7;
+      if (r === "godly") return 8;
+      if (r === "crate") return 9;
+      return 10;
+    };
+
+    const list = units.filter(u => {
       const matchesSearch = u.name.toLowerCase().includes(pickerSearchQuery.toLowerCase());
       const matchesRarity = pickerRarityFilter === "All" || u.rarity === pickerRarityFilter;
       return matchesSearch && matchesRarity;
     });
-  }, [pickerSearchQuery, pickerRarityFilter]);
+
+    return [...list].sort((a, b) => {
+      const rA = getRarityIndex(a.rarity);
+      const rB = getRarityIndex(b.rarity);
+      if (rA !== rB) return rA - rB;
+      return a.gems - b.gems;
+    });
+  }, [pickerSearchQuery, pickerRarityFilter, units]);
 
   const isUserAdmin = discordUser ? !!discordUser.isAdmin : false;
 

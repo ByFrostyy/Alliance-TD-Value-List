@@ -202,12 +202,33 @@ export default function ValuePage({ units: propUnits }: { units?: Unit[] }) {
       const q = searchQuery.toLowerCase();
       list = list.filter(u => u.name.toLowerCase().includes(q));
     }
+    const getRarityIndex = (rarity: string): number => {
+      const r = (rarity || "").toLowerCase();
+      if (r === "basic" || r === "common") return 1;
+      if (r === "uncommon") return 2;
+      if (r === "rare") return 3;
+      if (r === "epic") return 4;
+      if (r === "legendary") return 5;
+      if (r === "mythic") return 6;
+      if (r === "exclusive") return 7;
+      if (r === "godly") return 8;
+      if (r === "crate") return 9;
+      return 10;
+    };
+
     if (sortBy === "gems_desc") {
       list.sort((a, b) => b.gems - a.gems);
     } else if (sortBy === "gems_asc") {
       list.sort((a, b) => a.gems - b.gems);
     } else if (sortBy === "name") {
       list.sort((a, b) => a.name.localeCompare(b.name));
+    } else {
+      list.sort((a, b) => {
+        const rA = getRarityIndex(a.rarity);
+        const rB = getRarityIndex(b.rarity);
+        if (rA !== rB) return rA - rB;
+        return a.gems - b.gems;
+      });
     }
     return list;
   }, [selectedRarity, searchQuery, sortBy, units, favorites]);
@@ -927,7 +948,7 @@ export default function ValuePage({ units: propUnits }: { units?: Unit[] }) {
                                 <th className="p-3 font-semibold text-[8px] uppercase text-slate-500">Base Dmg / Hp</th>
                                 <th className="p-3 font-semibold text-[8px] uppercase text-slate-500">Cooldown</th>
                                 <th className="p-3 font-semibold text-[8px] uppercase text-slate-500">Dps</th>
-                                <th className="p-3 font-semibold text-[8px] uppercase text-slate-500">Coverage Range</th>
+                                <th className="p-3 font-semibold text-[8px] uppercase text-slate-500">Range</th>
                               </tr>
                             </thead>
                               <tbody>

@@ -464,12 +464,33 @@ export default function TradeCalculator({ units: propUnits, signatures: propSign
       list = list.filter(u => u.name.toLowerCase().includes(q));
     }
 
+    const getRarityIndex = (rarity: string): number => {
+      const r = (rarity || "").toLowerCase();
+      if (r === "basic" || r === "common") return 1;
+      if (r === "uncommon") return 2;
+      if (r === "rare") return 3;
+      if (r === "epic") return 4;
+      if (r === "legendary") return 5;
+      if (r === "mythic") return 6;
+      if (r === "exclusive") return 7;
+      if (r === "godly") return 8;
+      if (r === "crate") return 9;
+      return 10;
+    };
+
     if (sortOption === "price-desc") {
       list.sort((a, b) => b.gems - a.gems);
     } else if (sortOption === "price-asc") {
       list.sort((a, b) => a.gems - b.gems);
     } else if (sortOption === "demand-desc") {
       list.sort((a, b) => b.demand - a.demand);
+    } else {
+      list.sort((a, b) => {
+        const rA = getRarityIndex(a.rarity);
+        const rB = getRarityIndex(b.rarity);
+        if (rA !== rB) return rA - rB;
+        return a.gems - b.gems;
+      });
     }
     return list;
   }, [rarityFilter, searchQuery, sortOption]);

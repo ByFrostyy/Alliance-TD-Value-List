@@ -416,12 +416,36 @@ function cleanAndSyncUnits() {
           demand: defUnit.demand,
           stability: defUnit.stability,
           rarity: defUnit.rarity,
+          placeCost: defUnit.placeCost,
+          img: defUnit.img,
+          upgrades: defUnit.upgrades,
         };
       } else {
         dbState.units.push(defUnit);
       }
     });
   }
+
+  const getRarityIndex = (rarity: string): number => {
+    const r = (rarity || "").toLowerCase();
+    if (r === "basic" || r === "common") return 1;
+    if (r === "uncommon") return 2;
+    if (r === "rare") return 3;
+    if (r === "epic") return 4;
+    if (r === "legendary") return 5;
+    if (r === "mythic") return 6;
+    if (r === "exclusive") return 7;
+    if (r === "godly") return 8;
+    if (r === "crate") return 9;
+    return 10;
+  };
+
+  dbState.units.sort((a: any, b: any) => {
+    const rA = getRarityIndex(a.rarity);
+    const rB = getRarityIndex(b.rarity);
+    if (rA !== rB) return rA - rB;
+    return (Number(a.gems) || 0) - (Number(b.gems) || 0);
+  });
 }
 
 cleanAndSyncUnits();
@@ -964,8 +988,30 @@ export const initPromise = (async () => {
     if (!Array.isArray(units)) {
       return res.status(400).json({ error: "Invalid units list" });
     }
-    dbState.units = units;
-    logAdminAction(user.displayName || user.name, "Update Units Database", `Saved ${units.length} total units`);
+
+    const getRarityIndex = (rarity: string): number => {
+      const r = (rarity || "").toLowerCase();
+      if (r === "basic" || r === "common") return 1;
+      if (r === "uncommon") return 2;
+      if (r === "rare") return 3;
+      if (r === "epic") return 4;
+      if (r === "legendary") return 5;
+      if (r === "mythic") return 6;
+      if (r === "exclusive") return 7;
+      if (r === "godly") return 8;
+      if (r === "crate") return 9;
+      return 10;
+    };
+
+    const sorted = [...units].sort((a: any, b: any) => {
+      const rA = getRarityIndex(a.rarity);
+      const rB = getRarityIndex(b.rarity);
+      if (rA !== rB) return rA - rB;
+      return (Number(a.gems) || 0) - (Number(b.gems) || 0);
+    });
+
+    dbState.units = sorted;
+    logAdminAction(user.displayName || user.name, "Update Units Database", `Saved ${sorted.length} total units`);
     persistState();
     res.json({ success: true, units: dbState.units });
   });
